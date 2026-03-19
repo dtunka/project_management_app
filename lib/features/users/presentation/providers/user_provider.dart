@@ -30,7 +30,27 @@ class UserProvider with ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+ Future<UserModel?> createUser(Map<String, dynamic> userData) async {
+  _isLoading = true;
+  notifyListeners();
 
+  try {
+    final newUser = await repository.createUser(userData);
+
+    // Add new user to local list
+    _users.add(newUser);
+
+    _isLoading = false;
+    notifyListeners();
+    return newUser;
+  } catch (e) {
+    _errorMessage = "Failed to create user: $e";
+    debugPrint("Create User Error: $e");
+    _isLoading = false;
+    notifyListeners();
+    return null;
+  }
+}
   Future<bool> deleteUser(String userId) async {
     _isLoading = true;
     notifyListeners();

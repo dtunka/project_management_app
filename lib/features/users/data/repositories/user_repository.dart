@@ -90,7 +90,73 @@ class UserRepository {
       throw ApiException('Failed to fetch users: ${e.toString()}');
     }
   }
-
+Future<UserModel> createUser(Map<String, dynamic> userData) async {
+  try {
+    final token = await TokenManager.getToken();
+    
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
+    }
+    
+    final response = await apiClient.post(
+      "users",
+      body: userData,
+      headers: {"Authorization": "Bearer $token"},
+    );
+    
+    print("Create User Response Type: ${response.runtimeType}");
+    print("Create User Response: $response");
+    
+    // Handle different response structures
+    UserModel? createdUser;
+    
+    // Case 1: Response is a List (API might return array)
+    if (response is List) {
+      if (response.isNotEmpty) {
+        final firstItem = response[0];
+        if (firstItem is Map<String, dynamic>) {
+          createdUser = UserModel.fromJson(firstItem);
+        } else if (firstItem is Map) {
+          Map<String, dynamic> castedMap = Map<String, dynamic>.from(firstItem);
+          createdUser = UserModel.fromJson(castedMap);
+        }
+      }
+    }
+    // Case 2: Response has 'data' field
+    else if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        createdUser = UserModel.fromJson(data);
+      } else if (data is List && data.isNotEmpty) {
+        createdUser = UserModel.fromJson(data.first);
+      }
+    }
+    // Case 3: Response has 'user' field
+    else if (response.containsKey('user')) {
+      final user = response['user'];
+      if (user is Map<String, dynamic>) {
+        createdUser = UserModel.fromJson(user);
+      }
+    }
+    // Case 4: Response itself is a Map
+    else if (response is Map<String, dynamic>) {
+      createdUser = UserModel.fromJson(response);
+    }
+    
+    if (createdUser != null) {
+      print("User created successfully: ${createdUser.name}");
+      return createdUser;
+    }
+    
+    throw ApiException('Failed to parse created user data from response: $response');
+    
+  } on ApiException {
+    rethrow;
+  } catch (e) {
+    print("Error in createUser: $e");
+    throw ApiException('Failed to create user: ${e.toString()}');
+  }
+}
   Future<void> deleteUser(String userId) async {
     try {
       final token = await TokenManager.getToken();

@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:project_management_app/features/dashboard/data/repositories/dashboard_repository.dart';
+import 'package:project_management_app/features/dashboard/presentation/pages/admin_dashboard_pages.dart';
+import 'package:project_management_app/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:project_management_app/features/users/data/repositories/user_repository.dart';
+import 'package:project_management_app/features/users/presentation/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project_management_app/core/constants/app_constants.dart';
 import 'package:project_management_app/core/networks/api_client.dart';
@@ -36,8 +41,25 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
-
-       
+     //3 Admin Dashboard Provider
+       ChangeNotifierProvider(
+         create: (context) {
+           final client = Provider.of<ApiClient>(context, listen: false);
+            return DashboardProvider(
+             repository:  DashboardRepository(apiClient: client), 
+            );
+          },
+        ),
+     //4. User Provider 
+        ChangeNotifierProvider(
+          create: (context) {
+            final client = Provider.of<ApiClient>(context, listen: false);
+           
+            return UserProvider(
+              repository: UserRepository(apiClient: client), // Adjust this line
+            );
+          },
+        ),
         
        
       ],
@@ -49,7 +71,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/login': (context) => const LoginPage(),
           '/register': (context) => const RegisterPage(),
-         
+          '/adminDashboard': (context) => const AdminDashboardPage(),
         },
       ),
     );
