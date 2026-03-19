@@ -32,6 +32,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     });
   }
 
+  /// Handle sidebar item selection
+  void _onSidebarItemSelected(int index) {
+    setState(() {
+      selectedIndex = index;
+      _isSidebarVisible = false; // Close sidebar after selection
+    });
+  }
+
   /// ---------- STAT CARD (Compact) ----------
   Widget statCard(String title, String value, IconData icon, Color color) {
     return Container(
@@ -96,11 +104,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         style: const TextStyle(color: Colors.white, fontSize: 14),
       ),
       dense: true,
-      onTap: () {
-        setState(() {
-          selectedIndex = index;
-        });
-      },
+      onTap: () => _onSidebarItemSelected(index),
     );
   }
 
@@ -470,176 +474,188 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
-      body: Row(
+      body: Stack(
         children: [
-          /// ---------------- SIDEBAR (Conditional) ----------------
-          if (_isSidebarVisible)
-            Container(
-              width: 200,
-              color: const Color(0xFF1B2A47),
-              child: Column(
-                children: [
-                  const SizedBox(height: 30),
-                  const Text(
-                    "TaskFlow",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+          /// ---------------- MAIN CONTENT (Always visible) ----------------
+          Column(
+            children: [
+              /// TOP BAR
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: Colors.white,
+                child: Row(
+                  children: [
+                    /// Menu Toggle Button
+                    GestureDetector(
+                      onTap: _toggleSidebar,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          _isSidebarVisible ? Icons.close : Icons.menu,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          sidebarItem(Icons.dashboard, "Dashboard", 0),
-                          sidebarItem(Icons.folder, "Projects", 1),
-                          sidebarItem(Icons.people, "Users", 2),
-                          sidebarItem(Icons.groups, "Teams", 3),
-                          sidebarItem(Icons.bar_chart, "Reports", 4),
-                          sidebarItem(Icons.timeline, "Activities", 5),
-                          sidebarItem(Icons.settings, "Settings", 6),
-                          sidebarItem(Icons.person, "Profile", 7),
+                    
+                    const SizedBox(width: 12),
+
+                    /// Search Bar
+                    Expanded(
+                      child: Container(
+                        height: 36,
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: "Search...",
+                            hintStyle: const TextStyle(fontSize: 13),
+                            prefixIcon: const Icon(Icons.search, size: 18),
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    const Icon(Icons.notifications_none, size: 20),
+
+                    const SizedBox(width: 12),
+
+                    /// User Profile
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.blue,
+                          child: Text(
+                            avatarLetter,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (MediaQuery.of(context).size.width > 500) ...[
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Text(
+                                role,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.all(12),
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 243, 147, 147),
-                        minimumSize: const Size(double.infinity, 36),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
-                      onPressed: () async {
-                        await TokenManager.clearToken();
-                        if (context.mounted) {
-                          Navigator.pushReplacementNamed(context, '/login');
-                        }
-                      },
-                      icon: const Icon(Icons.logout, size: 16),
-                      label: const Text("Logout", style: TextStyle(fontSize: 13)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
+                  ],
+                ),
+              ),
+
+              /// CONTENT
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: buildContent(dashboardProvider),
+                ),
+              ),
+            ],
+          ),
+
+          /// ---------------- SIDEBAR (Overlay) ----------------
+          if (_isSidebarVisible)
+            GestureDetector(
+              onTap: _toggleSidebar, // Close sidebar when tapping outside
+              child: Container(
+                color: Colors.black54, // Semi-transparent background
               ),
             ),
-
-          /// ---------------- MAIN CONTENT ----------------
-          Expanded(
-            child: Column(
-              children: [
-                /// TOP BAR
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  color: Colors.white,
-                  child: Row(
-                    children: [
-                      /// Menu / Clear Toggle Button
-                      GestureDetector(
-                        onTap: _toggleSidebar,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Icon(
-                            _isSidebarVisible ? Icons.close : Icons.menu,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
-                        ),
+          
+          if (_isSidebarVisible)
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 200,
+                color: const Color(0xFF1B2A47),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 30),
+                    const Text(
+                      "TaskFlow",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      
-                      const SizedBox(width: 12),
-
-                      /// Search Bar
-                      Expanded(
-                        child: Container(
-                          height: 36,
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: "Search...",
-                              hintStyle: const TextStyle(fontSize: 13),
-                              prefixIcon: const Icon(Icons.search, size: 18),
-                              filled: true,
-                              fillColor: Colors.grey.shade100,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      const Icon(Icons.notifications_none, size: 20),
-
-                      const SizedBox(width: 12),
-
-                      /// User Profile
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.blue,
-                            child: Text(
-                              avatarLetter,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          if (MediaQuery.of(context).size.width > 500) ...[
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                Text(
-                                  role,
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    ),
+                    const SizedBox(height: 20),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            sidebarItem(Icons.dashboard, "Dashboard", 0),
+                            sidebarItem(Icons.folder, "Projects", 1),
+                            sidebarItem(Icons.people, "Users", 2),
+                            sidebarItem(Icons.groups, "Teams", 3),
+                            sidebarItem(Icons.bar_chart, "Reports", 4),
+                            sidebarItem(Icons.timeline, "Activities", 5),
+                            sidebarItem(Icons.settings, "Settings", 6),
+                            sidebarItem(Icons.person, "Profile", 7),
                           ],
-                        ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.all(12),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: const Color.fromARGB(255, 20, 19, 19),
+                          backgroundColor: const Color.fromARGB(255, 86, 114, 240),
+                          minimumSize: const Size(double.infinity, 36),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onPressed: () async {
+                          await TokenManager.clearToken();
+                          if (context.mounted) {
+                            Navigator.pushReplacementNamed(context, '/login');
+                          }
+                        },
+                        icon: const Icon(Icons.logout, size: 16),
+                        label: const Text("Logout", style: TextStyle(fontSize: 13)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                 ),
-
-                /// CONTENT
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: buildContent(dashboardProvider),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
         ],
       ),
     );
