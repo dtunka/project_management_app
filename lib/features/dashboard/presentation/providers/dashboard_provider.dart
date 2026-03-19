@@ -21,7 +21,7 @@ class DashboardProvider with ChangeNotifier {
 
   try {
     final token = await TokenManager.getToken();
-   print("Dashboard Token: $token");
+   //print("Dashboard Token: $token");
     _dashboard = await repository.getDashboardStats(token!);
   } catch (e) {
     _errorMessage = e.toString();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project_management_app/features/authorization/presentation/providers/auth_provider.dart';
+import 'package:project_management_app/features/projects/presentation/pages/projects_page.dart';
 import 'package:project_management_app/features/users/presentation/pages/user_page.dart';
 import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
@@ -100,7 +101,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       selectedTileColor: Colors.white24,
       leading: Icon(icon, color: Colors.white, size: 20),
       title: Text(
-        title, 
+        title,
         style: const TextStyle(color: Colors.white, fontSize: 14),
       ),
       dense: true,
@@ -121,10 +122,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 // Header
                 const Text(
                   "Dashboard Overview",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 const Text(
@@ -282,7 +280,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black12, blurRadius: 4),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,11 +316,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                               child: Column(
                                 children: [
                                   Text(
-                                    (dashboard?.overdueProjects ?? 0).toString(),
+                                    (dashboard?.overdueProjects ?? 0)
+                                        .toString(),
                                     style: TextStyle(
                                       fontSize: 36,
                                       fontWeight: FontWeight.bold,
-                                      color: (dashboard?.overdueProjects ?? 0) > 0
+                                      color:
+                                          (dashboard?.overdueProjects ?? 0) > 0
                                           ? Colors.orange[700]
                                           : Colors.green[700],
                                     ),
@@ -331,7 +333,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                                         ? "Projects need attention"
                                         : "All projects on track",
                                     style: TextStyle(
-                                      color: (dashboard?.overdueProjects ?? 0) > 0
+                                      color:
+                                          (dashboard?.overdueProjects ?? 0) > 0
                                           ? Colors.orange[700]
                                           : Colors.green[700],
                                       fontSize: 14,
@@ -354,7 +357,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black12, blurRadius: 4),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,7 +424,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     ),
                   ],
                 ),
-                
+
                 // Extra bottom padding
                 const SizedBox(height: 20),
               ],
@@ -434,7 +439,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return buildDashboard(provider);
 
       case 1:
-        return const Center(child: Text("Projects Page"));
+        return const ProjectsPage();
 
       case 2:
         return const UsersPage();
@@ -471,7 +476,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       role = role[0].toUpperCase() + role.substring(1);
     }
     String avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : "A";
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: Stack(
@@ -504,7 +509,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(width: 12),
 
                     /// Search Bar
@@ -518,7 +523,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                             prefixIcon: const Icon(Icons.search, size: 18),
                             filled: true,
                             fillColor: Colors.grey.shade100,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(6),
                               borderSide: BorderSide.none,
@@ -595,7 +602,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 color: Colors.black54, // Semi-transparent background
               ),
             ),
-          
+
           if (_isSidebarVisible)
             Positioned(
               left: 0,
@@ -636,8 +643,18 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       margin: const EdgeInsets.all(12),
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          foregroundColor: const Color.fromARGB(255, 20, 19, 19),
-                          backgroundColor: const Color.fromARGB(255, 86, 114, 240),
+                          foregroundColor: const Color.fromARGB(
+                            255,
+                            20,
+                            19,
+                            19,
+                          ),
+                          backgroundColor: const Color.fromARGB(
+                            255,
+                            86,
+                            114,
+                            240,
+                          ),
                           minimumSize: const Size(double.infinity, 36),
                           padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
@@ -648,7 +665,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                           }
                         },
                         icon: const Icon(Icons.logout, size: 16),
-                        label: const Text("Logout", style: TextStyle(fontSize: 13)),
+                        label: const Text(
+                          "Logout",
+                          style: TextStyle(fontSize: 13),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),

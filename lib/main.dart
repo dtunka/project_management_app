@@ -4,6 +4,9 @@ import 'package:project_management_app/features/dashboard/presentation/pages/adm
 import 'package:project_management_app/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:project_management_app/features/users/data/repositories/user_repository.dart';
 import 'package:project_management_app/features/users/presentation/providers/user_provider.dart';
+
+import 'package:project_management_app/features/projects/data/repositories/project_repository.dart';
+import 'package:project_management_app/features/projects/presentation/providers/project_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:project_management_app/core/constants/app_constants.dart';
 import 'package:project_management_app/core/networks/api_client.dart';
@@ -29,8 +32,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // 1. Provide the ApiClient
-          Provider<ApiClient>.value(value: apiClient),
-        //Provider<ApiClient>(create: (_) => apiClient),
+        Provider<ApiClient>.value(value: apiClient),
 
         // 2. Auth Provider
         ChangeNotifierProvider(
@@ -41,27 +43,36 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
-     //3 Admin Dashboard Provider
-       ChangeNotifierProvider(
-         create: (context) {
-           final client = Provider.of<ApiClient>(context, listen: false);
-            return DashboardProvider(
-             repository:  DashboardRepository(apiClient: client), 
-            );
-          },
-        ),
-     //4. User Provider 
+        
+        // 3. Admin Dashboard Provider
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
-           
-            return UserProvider(
-              repository: UserRepository(apiClient: client), // Adjust this line
+            return DashboardProvider(
+              repository: DashboardRepository(apiClient: client), 
             );
           },
         ),
         
-       
+        // 4. User Provider 
+        ChangeNotifierProvider(
+          create: (context) {
+            final client = Provider.of<ApiClient>(context, listen: false);
+            return UserProvider(
+              repository: UserRepository(apiClient: client),
+            );
+          },
+        ),
+        
+        // 5. Projects Provider - NEW ADDITION
+        ChangeNotifierProvider(
+          create: (context) {
+            final client = Provider.of<ApiClient>(context, listen: false);
+            return ProjectProvider(
+              repository: ProjectRepository(apiClient: client),
+            );
+          },
+        ),
       ],
       child: MaterialApp(
         title: 'Project Management App',
