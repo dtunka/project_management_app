@@ -261,10 +261,14 @@ class _TeamsPageState extends State<TeamsPage> {
     );
   }
 
-  // Show edit team dialog
+  // Show edit team dialog with member selection
   Future<void> _showEditTeamDialog(BuildContext context, TeamModel team) async {
     final nameController = TextEditingController(text: team.name);
     final descriptionController = TextEditingController(text: team.description);
+    
+    // Initialize selected members with current team members
+    List<String> selectedMemberIds = team.members.map((m) => m.id).toList();
+    
     bool isLoading = false;
     String? nameError;
     String? descriptionError;
@@ -283,11 +287,12 @@ class _TeamsPageState extends State<TeamsPage> {
             ),
             content: SingleChildScrollView(
               child: Container(
-                width: 400,
+                width: 500,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Name Field
                     TextField(
                       controller: nameController,
                       decoration: InputDecoration(
@@ -303,6 +308,8 @@ class _TeamsPageState extends State<TeamsPage> {
                       },
                     ),
                     const SizedBox(height: 16),
+
+                    // Description Field
                     TextField(
                       controller: descriptionController,
                       decoration: InputDecoration(
@@ -318,6 +325,146 @@ class _TeamsPageState extends State<TeamsPage> {
                         });
                       },
                     ),
+                    const SizedBox(height: 16),
+
+                    // Members Selection with Current Members Pre-selected
+                    Consumer<TeamProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.isMembersLoading) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
+
+                        if (provider.availableMembers.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Text('No members available'),
+                            ),
+                          );
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Team Members',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                Text(
+                                  '${selectedMemberIds.length} selected',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 300),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: provider.availableMembers.length,
+                                itemBuilder: (context, index) {
+                                  final member = provider.availableMembers[index];
+                                  final isSelected = selectedMemberIds.contains(member.id);
+                                  
+                                  // Check if this member is currently in the team
+                                  final isCurrentMember = team.members.any((m) => m.id == member.id);
+
+                                  return CheckboxListTile(
+                                    value: isSelected,
+                                    title: Text(
+                                      member.name,
+                                      style: TextStyle(
+                                        fontWeight: isCurrentMember ? FontWeight.w600 : FontWeight.normal,
+                                      ),
+                                    ),
+                                    subtitle: Text(member.email),
+                                    onChanged: (selected) {
+                                      setDialogState(() {
+                                        if (selected == true) {
+                                          selectedMemberIds.add(member.id);
+                                        } else {
+                                          selectedMemberIds.remove(member.id);
+                                        }
+                                      });
+                                    },
+                                    controlAffinity: ListTileControlAffinity.leading,
+                                    dense: true,
+                                    secondary: isCurrentMember
+                                        ? Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              'Current',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.green[700],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Show summary of changes
+                            if (selectedMemberIds.length != team.members.length)
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline, size: 14, color: Colors.blue[700]),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        _getMemberChangeSummary(team, selectedMemberIds),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.blue[700],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -331,6 +478,7 @@ class _TeamsPageState extends State<TeamsPage> {
                 onPressed: isLoading
                     ? null
                     : () async {
+                        // Validate
                         if (nameController.text.trim().isEmpty) {
                           setDialogState(() => nameError = 'Team name is required');
                           return;
@@ -346,14 +494,35 @@ class _TeamsPageState extends State<TeamsPage> {
                           dialogContext,
                           listen: false,
                         );
+                        
+                        // First update team name and description
                         final updatedTeam = await provider.updateTeam(
                           teamId: team.id,
                           name: nameController.text.trim(),
                           description: descriptionController.text.trim(),
                         );
 
-                        if (dialogContext.mounted) {
-                          if (updatedTeam != null) {
+                        // Then update members (add new, remove removed)
+                        if (updatedTeam != null) {
+                          // Find members to add (in selected but not in current team)
+                          final currentMemberIds = team.members.map((m) => m.id).toList();
+                          final membersToAdd = selectedMemberIds.where((id) => !currentMemberIds.contains(id)).toList();
+                          final membersToRemove = currentMemberIds.where((id) => !selectedMemberIds.contains(id)).toList();
+                          
+                          // Add new members
+                          for (final memberId in membersToAdd) {
+                            await provider.addMemberToTeam(team.id, memberId);
+                          }
+                          
+                          // Remove members that were deselected
+                          for (final memberId in membersToRemove) {
+                            await provider.removeMemberFromTeam(team.id, memberId);
+                          }
+                          
+                          // Refresh teams to get updated member list
+                          await provider.fetchTeams();
+                          
+                          if (dialogContext.mounted) {
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
                               SnackBar(
                                 content: Text('Team "${updatedTeam.name}" updated successfully'),
@@ -361,7 +530,9 @@ class _TeamsPageState extends State<TeamsPage> {
                               ),
                             );
                             Navigator.pop(dialogContext);
-                          } else {
+                          }
+                        } else {
+                          if (dialogContext.mounted) {
                             ScaffoldMessenger.of(dialogContext).showSnackBar(
                               SnackBar(
                                 content: Text(provider.errorMessage ?? 'Failed to update team'),
@@ -392,6 +563,27 @@ class _TeamsPageState extends State<TeamsPage> {
         },
       ),
     );
+  }
+
+  // Helper method to show summary of member changes
+  String _getMemberChangeSummary(TeamModel team, List<String> selectedMemberIds) {
+    final currentMemberIds = team.members.map((m) => m.id).toList();
+    final membersToAdd = selectedMemberIds.where((id) => !currentMemberIds.contains(id)).toList();
+    final membersToRemove = currentMemberIds.where((id) => !selectedMemberIds.contains(id)).toList();
+    
+    if (membersToAdd.isEmpty && membersToRemove.isEmpty) {
+      return 'No changes to team members';
+    }
+    
+    final List<String> changes = [];
+    if (membersToAdd.isNotEmpty) {
+      changes.add('+${membersToAdd.length} new');
+    }
+    if (membersToRemove.isNotEmpty) {
+      changes.add('-${membersToRemove.length} removed');
+    }
+    
+    return 'Members: ${changes.join(", ")}';
   }
 
   // Show delete confirmation
@@ -448,125 +640,6 @@ class _TeamsPageState extends State<TeamsPage> {
         }
       }
     }
-  }
-
-  // Show add members dialog
-  Future<void> _showAddMembersDialog(BuildContext context, TeamModel team) async {
-    List<String> selectedMemberIds = List.from(team.members.map((m) => m.id));
-    bool isLoading = false;
-
-    return showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.person_add, color: Colors.blue[700]),
-                const SizedBox(width: 8),
-                Text('Add Members to ${team.name}'),
-              ],
-            ),
-            content: Consumer<TeamProvider>(
-              builder: (context, provider, child) {
-                if (provider.isMembersLoading) {
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final availableMembers = provider.availableMembers.where(
-                  (m) => !team.members.any((tm) => tm.id == m.id)
-                ).toList();
-
-                if (availableMembers.isEmpty) {
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: Text('No new members available to add')),
-                  );
-                }
-
-                return Container(
-                  width: 400,
-                  constraints: const BoxConstraints(maxHeight: 400),
-                  child: ListView.builder(
-                    itemCount: availableMembers.length,
-                    itemBuilder: (context, index) {
-                      final member = availableMembers[index];
-                      final isSelected = selectedMemberIds.contains(member.id);
-
-                      return CheckboxListTile(
-                        value: isSelected,
-                        title: Text(member.name),
-                        subtitle: Text(member.email),
-                        onChanged: (selected) {
-                          setDialogState(() {
-                            if (selected == true) {
-                              selectedMemberIds.add(member.id);
-                            } else {
-                              selectedMemberIds.remove(member.id);
-                            }
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                        dense: true,
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('CANCEL'),
-              ),
-              ElevatedButton(
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        setDialogState(() => isLoading = true);
-                        
-                        final provider = Provider.of<TeamProvider>(dialogContext, listen: false);
-                        
-                        // Add new members
-                        for (final memberId in selectedMemberIds) {
-                          if (!team.members.any((m) => m.id == memberId)) {
-                            await provider.addMemberToTeam(team.id, memberId);
-                          }
-                        }
-                        
-                        if (dialogContext.mounted) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            const SnackBar(
-                              content: Text('Members added successfully'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                          Navigator.pop(dialogContext);
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text('ADD MEMBERS'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
   }
 
   @override
@@ -880,29 +953,16 @@ class _TeamsPageState extends State<TeamsPage> {
                                         }).toList(),
                                       ),
                                     const SizedBox(height: 16),
-
-                                    // Action Buttons
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
-                                        // Add Members Button
-                                        OutlinedButton.icon(
-                                          onPressed: () => _showAddMembersDialog(context, team),
-                                          icon: const Icon(Icons.person_add, size: 16),
-                                          label: const Text('Add Members'),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: Colors.blue,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-
-                                        // Edit Button
+                                        // Edit Button (now handles all member management)
                                         ElevatedButton.icon(
                                           onPressed: provider.isLoading
                                               ? null
                                               : () => _showEditTeamDialog(context, team),
                                           icon: const Icon(Icons.edit, size: 16),
-                                          label: const Text('Edit'),
+                                          label: const Text('Edit Team'),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.blue,
                                             foregroundColor: Colors.white,
