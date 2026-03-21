@@ -64,7 +64,7 @@ class MyApp extends StatelessWidget {
           },
         ),
         
-        // 5. Projects Provider - NEW ADDITION
+        // 5. Projects Provider 
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
