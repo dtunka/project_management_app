@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:project_management_app/features/dashboard/data/repositories/dashboard_repository.dart';
 import 'package:project_management_app/features/dashboard/presentation/pages/admin_dashboard_pages.dart';
 import 'package:project_management_app/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:project_management_app/features/teams/data/repositories/team_repository.dart';
+import 'package:project_management_app/features/teams/presentation/providers/team_provider.dart';
 import 'package:project_management_app/features/users/data/repositories/user_repository.dart';
 import 'package:project_management_app/features/users/presentation/providers/user_provider.dart';
 
@@ -70,6 +72,15 @@ class MyApp extends StatelessWidget {
             final client = Provider.of<ApiClient>(context, listen: false);
             return ProjectProvider(
               repository: ProjectRepository(apiClient: client),
+            );
+          },
+        ),
+        //6 TEAMS PROVIDER
+        ChangeNotifierProvider(
+          create: (context) {
+            final client = Provider.of<ApiClient>(context, listen: false);
+            return TeamProvider(
+              repository: TeamRepository(apiClient: client),
             );
           },
         ),
