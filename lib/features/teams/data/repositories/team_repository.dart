@@ -18,6 +18,7 @@ class TeamRepository {
         throw UnauthorizedException('No authentication token found');
       }
 
+      // Make API call
       final response = await apiClient.get(
         'teams',
         headers: {'Authorization': 'Bearer $token'},
@@ -25,24 +26,13 @@ class TeamRepository {
 
       print('Teams response: $response');
 
-      List<TeamModel> teams = [];
+      // Extract the data array from response
+      // API returns: { "success": true, "data": [...] }
+      final List<dynamic> teamsData = response['data'] ?? [];
 
-      if (response.containsKey('data')) {
-        final data = response['data'];
-        if (data is List) {
-          teams = data.map((json) => TeamModel.fromJson(json)).toList();
-        }
-      } else if (response.containsKey('teams')) {
-        final teamsData = response['teams'];
-        if (teamsData is List) {
-          teams = teamsData.map((json) => TeamModel.fromJson(json)).toList();
-        }
-      } else if (response is List) {
-        teams = response.map((json) => TeamModel.fromJson(json)).toList();
-      }
-
-      print('Parsed ${teams.length} teams');
-      return teams;
+      // Convert each item to TeamModel
+      return teamsData.map((json) => TeamModel.fromJson(json)).toList();
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -65,10 +55,11 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (response.containsKey('data')) {
-        return TeamModel.fromJson(response['data']);
-      }
-      return TeamModel.fromJson(response);
+      // Extract the data from response
+      final Map<String, dynamic> teamData = response['data'] ?? response;
+      
+      return TeamModel.fromJson(teamData);
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -92,12 +83,11 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print('Create team response: $response');
-
-      if (response.containsKey('data')) {
-        return TeamModel.fromJson(response['data']);
-      }
-      return TeamModel.fromJson(response);
+      // Extract the created team from response
+      final Map<String, dynamic> createdTeam = response['data'] ?? response;
+      
+      return TeamModel.fromJson(createdTeam);
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -121,12 +111,11 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print('Update team response: $response');
-
-      if (response.containsKey('data')) {
-        return TeamModel.fromJson(response['data']);
-      }
-      return TeamModel.fromJson(response);
+      // Extract the updated team from response
+      final Map<String, dynamic> updatedTeam = response['data'] ?? response;
+      
+      return TeamModel.fromJson(updatedTeam);
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -150,6 +139,14 @@ class TeamRepository {
       );
 
       print('Delete team response: $response');
+      
+      // Check if deletion was successful
+      if (response['success'] == true) {
+        return;
+      }
+      
+      throw ApiException('Failed to delete team');
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -172,12 +169,11 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print('Add member response: $response');
-
-      if (response.containsKey('data')) {
-        return TeamModel.fromJson(response['data']);
-      }
-      return TeamModel.fromJson(response);
+      // Extract the updated team from response
+      final Map<String, dynamic> updatedTeam = response['data'] ?? response;
+      
+      return TeamModel.fromJson(updatedTeam);
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -200,12 +196,11 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print('Remove member response: $response');
-
-      if (response.containsKey('data')) {
-        return TeamModel.fromJson(response['data']);
-      }
-      return TeamModel.fromJson(response);
+      // Extract the updated team from response
+      final Map<String, dynamic> updatedTeam = response['data'] ?? response;
+      
+      return TeamModel.fromJson(updatedTeam);
+      
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -226,16 +221,13 @@ class TeamRepository {
 
       print('Members response: $response');
 
-      List<SimpleUser> members = [];
+      // Extract the data array from response
+      // API returns: { "success": true, "data": [...] }
+      final List<dynamic> membersData = response['data'] ?? [];
 
-      if (response.containsKey('data')) {
-        final data = response['data'];
-        if (data is List) {
-          members = data.map((json) => SimpleUser.fromJson(json)).toList();
-        }
-      }
-
-      return members;
+      // Convert each item to SimpleUser
+      return membersData.map((json) => SimpleUser.fromJson(json)).toList();
+      
     } catch (e) {
       print('Error in getAllMembers: $e');
       throw ApiException('Failed to fetch members: ${e.toString()}');
