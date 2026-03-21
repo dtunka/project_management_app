@@ -18,20 +18,35 @@ class TeamRepository {
         throw UnauthorizedException('No authentication token found');
       }
 
-      // Make API call
       final response = await apiClient.get(
         'teams',
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      print('Teams response: $response');
+      print('=== TEAMS API RESPONSE DEBUG ===');
+      print('Response type: ${response.runtimeType}');
+      print('Response keys: ${response.keys}');
+      
+      List<TeamModel> teams = [];
 
-      // Extract the data array from response
-      // API returns: { "success": true, "data": [...] }
-      final List<dynamic> teamsData = response['data'] ?? [];
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          for (var teamJson in data) {
+            try {
+              // Convert manager from Map to String if needed
+              final processedTeamJson = _processTeamJson(teamJson);
+              teams.add(TeamModel.fromJson(processedTeamJson));
+            } catch (e) {
+              print('Error parsing team: $e');
+              print('Team JSON: $teamJson');
+            }
+          }
+        }
+      }
 
-      // Convert each item to TeamModel
-      return teamsData.map((json) => TeamModel.fromJson(json)).toList();
+      print('Parsed ${teams.length} teams');
+      return teams;
       
     } on ApiException {
       rethrow;
@@ -39,6 +54,19 @@ class TeamRepository {
       print('Error in getAllTeams: $e');
       throw ApiException('Failed to fetch teams: ${e.toString()}');
     }
+  }
+
+  // Helper method to process team JSON and convert manager from Map to String
+  Map<String, dynamic> _processTeamJson(Map<String, dynamic> json) {
+    Map<String, dynamic> processed = Map.from(json);
+    
+    // If manager is a Map, extract the ID
+    if (processed['manager'] is Map) {
+      final managerMap = processed['manager'] as Map;
+      processed['manager'] = managerMap['_id'] ?? managerMap['id']?.toString();
+    }
+    
+    return processed;
   }
 
   // Get team by ID
@@ -55,10 +83,26 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      // Extract the data from response
-      final Map<String, dynamic> teamData = response['data'] ?? response;
+      print('Team by ID response: $response');
+
+      Map<String, dynamic> teamData = {};
       
-      return TeamModel.fromJson(teamData);
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is Map<String, dynamic>) {
+          teamData = data;
+        } else if (data is List && data.isNotEmpty) {
+          teamData = data.first;
+        } else {
+          teamData = response;
+        }
+      } else {
+        teamData = response;
+      }
+      
+      // Process the team JSON to convert manager from Map to String
+      final processedTeamData = _processTeamJson(teamData);
+      return TeamModel.fromJson(processedTeamData);
       
     } on ApiException {
       rethrow;
@@ -83,10 +127,26 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      // Extract the created team from response
-      final Map<String, dynamic> createdTeam = response['data'] ?? response;
+      print('Create team response: $response');
+
+      Map<String, dynamic> createdTeam = {};
       
-      return TeamModel.fromJson(createdTeam);
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is Map<String, dynamic>) {
+          createdTeam = data;
+        } else if (data is List && data.isNotEmpty) {
+          createdTeam = data.first;
+        } else {
+          createdTeam = response;
+        }
+      } else {
+        createdTeam = response;
+      }
+      
+      // Process the team JSON to convert manager from Map to String
+      final processedTeamData = _processTeamJson(createdTeam);
+      return TeamModel.fromJson(processedTeamData);
       
     } on ApiException {
       rethrow;
@@ -111,10 +171,26 @@ class TeamRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      // Extract the updated team from response
-      final Map<String, dynamic> updatedTeam = response['data'] ?? response;
+      print('Update team response: $response');
+
+      Map<String, dynamic> updatedTeam = {};
       
-      return TeamModel.fromJson(updatedTeam);
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is Map<String, dynamic>) {
+          updatedTeam = data;
+        } else if (data is List && data.isNotEmpty) {
+          updatedTeam = data.first;
+        } else {
+          updatedTeam = response;
+        }
+      } else {
+        updatedTeam = response;
+      }
+      
+      // Process the team JSON to convert manager from Map to String
+      final processedTeamData = _processTeamJson(updatedTeam);
+      return TeamModel.fromJson(processedTeamData);
       
     } on ApiException {
       rethrow;
@@ -140,8 +216,7 @@ class TeamRepository {
 
       print('Delete team response: $response');
       
-      // Check if deletion was successful
-      if (response['success'] == true) {
+      if (response['success'] == true || response['statusCode'] == 200) {
         return;
       }
       
@@ -155,82 +230,140 @@ class TeamRepository {
     }
   }
 
-  // Add member to team
-  Future<TeamModel> addMember(String teamId, String userId) async {
-    try {
-      final token = await TokenManager.getToken();
+// Add member to team
+Future<TeamModel> addMember(String teamId, String userId) async {
+  try {
+    final token = await TokenManager.getToken();
 
-      if (token == null) {
-        throw UnauthorizedException('No authentication token found');
-      }
-
-      final response = await apiClient.post(
-        'teams/$teamId/members/$userId',
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      // Extract the updated team from response
-      final Map<String, dynamic> updatedTeam = response['data'] ?? response;
-      
-      return TeamModel.fromJson(updatedTeam);
-      
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      print('Error in addMember: $e');
-      throw ApiException('Failed to add member: ${e.toString()}');
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
     }
-  }
 
-  // Remove member from team
-  Future<TeamModel> removeMember(String teamId, String userId) async {
-    try {
-      final token = await TokenManager.getToken();
+    print('Adding member - Team: $teamId, User: $userId');
+    
+    // CORRECT ENDPOINT: teams/{teamId}/members with userId in body
+    final response = await apiClient.post(
+      'teams/$teamId/members/$userId',  // Note: no userId in URL
+      body: {'userId': userId},   // userId goes in the body
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-      if (token == null) {
-        throw UnauthorizedException('No authentication token found');
-      }
+    print('Add member response: $response');
 
-      final response = await apiClient.delete(
-        'teams/$teamId/members/$userId',
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      // Extract the updated team from response
-      final Map<String, dynamic> updatedTeam = response['data'] ?? response;
-      
-      return TeamModel.fromJson(updatedTeam);
-      
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      print('Error in removeMember: $e');
-      throw ApiException('Failed to remove member: ${e.toString()}');
+    // Check if response is empty (some APIs return empty on success)
+    if (response.isEmpty) {
+      // If empty response, fetch the updated team
+      print('Empty response, fetching updated team...');
+      return await getTeamById(teamId);
     }
+
+    // Extract the updated team from response
+    Map<String, dynamic> updatedTeam = {};
+    
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        updatedTeam = data;
+      } else if (data is List && data.isNotEmpty) {
+        updatedTeam = data.first;
+      } else {
+        updatedTeam = response;
+      }
+    } else {
+      updatedTeam = response;
+    }
+    
+    // Process the team JSON to convert manager from Map to String
+    final processedTeamData = _processTeamJson(updatedTeam);
+    return TeamModel.fromJson(processedTeamData);
+    
+  } on ApiException {
+    rethrow;
+  } catch (e) {
+    print('Error in addMember: $e');
+    throw ApiException('Failed to add member: ${e.toString()}');
   }
+}
+ // Remove member from team
+// Remove member from team
+Future<TeamModel> removeMember(String teamId, String userId) async {
+  try {
+    final token = await TokenManager.getToken();
+
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
+    }
+
+    print('Removing member - Team: $teamId, User: $userId');
+    
+    // For removal, userId goes in the URL
+    final response = await apiClient.delete(
+      'teams/$teamId/members/$userId',
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    print('Remove member response: $response');
+
+    // Check if response is empty
+    if (response.isEmpty) {
+      // If empty response, fetch the updated team
+      print('Empty response, fetching updated team...');
+      return await getTeamById(teamId);
+    }
+
+    // Extract the updated team from response
+    Map<String, dynamic> updatedTeam = {};
+    
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        updatedTeam = data;
+      } else if (data is List && data.isNotEmpty) {
+        updatedTeam = data.first;
+      } else {
+        updatedTeam = response;
+      }
+    } else {
+      updatedTeam = response;
+    }
+    
+    // Process the team JSON to convert manager from Map to String
+    final processedTeamData = _processTeamJson(updatedTeam);
+    return TeamModel.fromJson(processedTeamData);
+    
+  } on ApiException {
+    rethrow;
+  } catch (e) {
+    print('Error in removeMember: $e');
+    throw ApiException('Failed to remove member: ${e.toString()}');
+  }
+}
 
   // Get all members (users with role 'member')
-  Future<List<SimpleUser>> getAllMembers() async {
-    try {
-      final token = await TokenManager.getToken();
+ // Get all members (users with role 'member')
+Future<List<SimpleUser>> getAllMembers() async {
+  try {
+    final token = await TokenManager.getToken();
 
-      final response = await apiClient.get(
-        'users/role/member',
-        headers: token != null ? {'Authorization': 'Bearer $token'} : {},
-      );
+    final response = await apiClient.get(
+      'users/role/member',
+      headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+    );
 
-      print('Members response: $response');
+    List<SimpleUser> members = [];
 
-      // Extract the data array from response
-      // API returns: { "success": true, "data": [...] }
-      final List<dynamic> membersData = response['data'] ?? [];
-
-      // Convert each item to SimpleUser
-      return membersData.map((json) => SimpleUser.fromJson(json)).toList();
-      
-    } catch (e) {
-      print('Error in getAllMembers: $e');
-      throw ApiException('Failed to fetch members: ${e.toString()}');
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is List) {
+        members = data.map((json) => SimpleUser.fromJson(json)).toList();
+      }
     }
+
+    return members;
+    
+  } catch (e) {
+    print('Error in getting All Members: $e');
+    throw ApiException('Failed to fetch members: ${e.toString()}');
   }
+}
 }
