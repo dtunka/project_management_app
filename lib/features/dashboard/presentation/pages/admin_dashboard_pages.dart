@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:project_management_app/features/authorization/presentation/providers/auth_provider.dart';
 import 'package:project_management_app/features/projects/presentation/pages/projects_page.dart';
+import 'package:project_management_app/features/teams/presentation/pages/teams_page.dart';
 import 'package:project_management_app/features/users/presentation/pages/user_page.dart';
 import 'package:provider/provider.dart';
 import '../providers/dashboard_provider.dart';
@@ -445,7 +446,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return const UsersPage();
 
       case 3:
-        return const Center(child: Text("Teams Page"));
+        return const TeamsPage();
 
       case 4:
         return const Center(child: Text("Reports Page"));
