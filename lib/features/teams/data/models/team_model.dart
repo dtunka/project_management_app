@@ -1,4 +1,4 @@
-import './team_memeber_model.dart';
+import 'team_member_model.dart';
 class TeamModel {
   final String id;
   final String name;

@@ -1,0 +1,244 @@
+import '../../../../core/networks/api_client.dart';
+import '../../../../core/networks/token_manager.dart';
+import '../../../../core/networks/api_exception.dart';
+import '../models/team_model.dart';
+import '../models/team_member_model.dart';
+
+class TeamRepository {
+  final ApiClient apiClient;
+
+  TeamRepository({required this.apiClient});
+
+  // Get all teams
+  Future<List<TeamModel>> getAllTeams() async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.get(
+        'teams',
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Teams response: $response');
+
+      List<TeamModel> teams = [];
+
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          teams = data.map((json) => TeamModel.fromJson(json)).toList();
+        }
+      } else if (response.containsKey('teams')) {
+        final teamsData = response['teams'];
+        if (teamsData is List) {
+          teams = teamsData.map((json) => TeamModel.fromJson(json)).toList();
+        }
+      } else if (response is List) {
+        teams = response.map((json) => TeamModel.fromJson(json)).toList();
+      }
+
+      print('Parsed ${teams.length} teams');
+      return teams;
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in getAllTeams: $e');
+      throw ApiException('Failed to fetch teams: ${e.toString()}');
+    }
+  }
+
+  // Get team by ID
+  Future<TeamModel> getTeamById(String teamId) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.get(
+        'teams/$teamId',
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.containsKey('data')) {
+        return TeamModel.fromJson(response['data']);
+      }
+      return TeamModel.fromJson(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in getTeamById: $e');
+      throw ApiException('Failed to fetch team: ${e.toString()}');
+    }
+  }
+
+  // Create new team
+  Future<TeamModel> createTeam(Map<String, dynamic> teamData) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.post(
+        'teams/create',
+        body: teamData,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Create team response: $response');
+
+      if (response.containsKey('data')) {
+        return TeamModel.fromJson(response['data']);
+      }
+      return TeamModel.fromJson(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in createTeam: $e');
+      throw ApiException('Failed to create team: ${e.toString()}');
+    }
+  }
+
+  // Update team
+  Future<TeamModel> updateTeam(String teamId, Map<String, dynamic> updateData) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.patch(
+        'teams/$teamId',
+        body: updateData,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Update team response: $response');
+
+      if (response.containsKey('data')) {
+        return TeamModel.fromJson(response['data']);
+      }
+      return TeamModel.fromJson(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in updateTeam: $e');
+      throw ApiException('Failed to update team: ${e.toString()}');
+    }
+  }
+
+  // Delete team
+  Future<void> deleteTeam(String teamId) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.delete(
+        'teams/$teamId',
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Delete team response: $response');
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in deleteTeam: $e');
+      throw ApiException('Failed to delete team: ${e.toString()}');
+    }
+  }
+
+  // Add member to team
+  Future<TeamModel> addMember(String teamId, String userId) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.post(
+        'teams/$teamId/members/$userId',
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Add member response: $response');
+
+      if (response.containsKey('data')) {
+        return TeamModel.fromJson(response['data']);
+      }
+      return TeamModel.fromJson(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in addMember: $e');
+      throw ApiException('Failed to add member: ${e.toString()}');
+    }
+  }
+
+  // Remove member from team
+  Future<TeamModel> removeMember(String teamId, String userId) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final response = await apiClient.delete(
+        'teams/$teamId/members/$userId',
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      print('Remove member response: $response');
+
+      if (response.containsKey('data')) {
+        return TeamModel.fromJson(response['data']);
+      }
+      return TeamModel.fromJson(response);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in removeMember: $e');
+      throw ApiException('Failed to remove member: ${e.toString()}');
+    }
+  }
+
+  // Get all members (users with role 'member')
+  Future<List<SimpleUser>> getAllMembers() async {
+    try {
+      final token = await TokenManager.getToken();
+
+      final response = await apiClient.get(
+        'users/role/member',
+        headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+      );
+
+      print('Members response: $response');
+
+      List<SimpleUser> members = [];
+
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is List) {
+          members = data.map((json) => SimpleUser.fromJson(json)).toList();
+        }
+      }
+
+      return members;
+    } catch (e) {
+      print('Error in getAllMembers: $e');
+      throw ApiException('Failed to fetch members: ${e.toString()}');
+    }
+  }
+}
