@@ -1,6 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:project_management_app/features/profile/data/repositories/profile_repository.dart';
 import '../../data/models/profile_model.dart';
+import '../../data/repositories/profile_repository.dart';
 import '../../../../core/networks/api_exception.dart';
 
 class ProfileProvider with ChangeNotifier {
@@ -11,11 +12,13 @@ class ProfileProvider with ChangeNotifier {
   ProfileModel? _profile;
   bool _isLoading = false;
   bool _isUpdating = false;
+  bool _isUploading = false;
   String? _errorMessage;
 
   ProfileModel? get profile => _profile;
   bool get isLoading => _isLoading;
   bool get isUpdating => _isUpdating;
+  bool get isUploading => _isUploading;
   String? get errorMessage => _errorMessage;
 
   // Fetch user profile
@@ -43,12 +46,34 @@ class ProfileProvider with ChangeNotifier {
     }
   }
 
-  // Update user profile
+  // Upload profile picture
+  Future<String?> uploadProfilePicture(File imageFile) async {
+    _isUploading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final imageUrl = await repository.uploadProfilePicture(imageFile);
+      _isUploading = false;
+      notifyListeners();
+      return imageUrl;
+      
+    } catch (e) {
+      _errorMessage = 'Failed to upload profile picture: ${e.toString()}';
+      print('Upload error: $e');
+      _isUploading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  // Update user profile with picture URL
   Future<bool> updateProfile({
     required String userId,
     String? name,
     String? email,
     String? password,
+    String? profilePicture,
   }) async {
     _isUpdating = true;
     _errorMessage = null;
@@ -60,6 +85,7 @@ class ProfileProvider with ChangeNotifier {
         name: name,
         email: email,
         password: password,
+        profilePicture: profilePicture,
       );
       
       _profile = updatedProfile;

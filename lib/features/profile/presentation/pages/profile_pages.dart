@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/profile_provider.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -17,6 +19,10 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _nameError;
   String? _emailError;
   String? _passwordError;
+  File? _selectedImage;
+  bool _isUploadingImage = false;
+
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -44,6 +50,183 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  // Pick image from gallery
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 85,
+      );
+      
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+        await _uploadProfilePicture();
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to pick image'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Take photo with camera
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 85,
+      );
+      
+      if (pickedFile != null) {
+        setState(() {
+          _selectedImage = File(pickedFile.path);
+        });
+        await _uploadProfilePicture();
+      }
+    } catch (e) {
+      print('Error taking photo: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to take photo'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Show image source dialog
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              const Text(
+                'Change Profile Picture',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Colors.blue),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.green),
+                title: const Text('Take a Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.cancel, color: Colors.red),
+                title: const Text('Cancel'),
+                onTap: () => Navigator.pop(context),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Upload profile picture
+  Future<void> _uploadProfilePicture() async {
+    if (_selectedImage == null) return;
+
+    final provider = Provider.of<ProfileProvider>(context, listen: false);
+    final profile = provider.profile;
+    if (profile == null) return;
+
+    setState(() {
+      _isUploadingImage = true;
+    });
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (loadingContext) => const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Uploading profile picture...'),
+          ],
+        ),
+      ),
+    );
+
+    final imageUrl = await provider.uploadProfilePicture(_selectedImage!);
+
+    if (context.mounted) {
+      Navigator.pop(context); // Close loading dialog
+
+      if (imageUrl != null) {
+        // Update profile with new picture URL
+        final success = await provider.updateProfile(
+          userId: profile.id,
+          profilePicture: imageUrl,
+        );
+
+        if (context.mounted && success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile picture updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          setState(() {
+            _selectedImage = null;
+          });
+        } else if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(provider.errorMessage ?? 'Failed to update profile picture'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.errorMessage ?? 'Failed to upload image'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
+    setState(() {
+      _isUploadingImage = false;
+    });
+  }
+
   // Email validation
   String? _validateEmail(String email) {
     if (email.isEmpty) {
@@ -61,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // Password validation
   String? _validatePassword(String password) {
     if (password.isEmpty) {
-      return null; // Password is optional during edit
+      return null;
     }
 
     if (password.length < 8) {
@@ -152,7 +335,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (context.mounted) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +345,7 @@ class _ProfilePageState extends State<ProfilePage> {
             duration: Duration(seconds: 2),
           ),
         );
-        _toggleEdit(); // Exit edit mode
+        _toggleEdit();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -294,22 +477,80 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Avatar
+                      // Avatar with Edit Button
                       Center(
-                        child: CircleAvatar(
-                          radius: 50,
-                          backgroundColor: Colors.blue,
-                          child: Text(
-                            profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
-                            style: const TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                        child: Stack(
+                          children: [
+                            // Profile Image
+                            _isUploadingImage
+                                ? Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.grey[200],
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 100,
+                                    height: 100,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      image: _selectedImage != null
+                                          ? DecorationImage(
+                                              image: FileImage(_selectedImage!),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : (profile.profilePicture != null
+                                              ? DecorationImage(
+                                                  image: NetworkImage(profile.profilePicture!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null),
+                                      color: Colors.blue,
+                                    ),
+                                    child: _selectedImage == null && profile.profilePicture == null
+                                        ? Center(
+                                            child: Text(
+                                              profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
+                                              style: const TextStyle(
+                                                fontSize: 40,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                            
+                            // Edit Icon Button
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: _showImageSourceDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // Role Badge
                       Center(

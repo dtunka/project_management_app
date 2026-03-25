@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../../../core/networks/api_client.dart';
 import '../../../../core/networks/token_manager.dart';
 import '../../../../core/networks/api_exception.dart';
@@ -17,17 +20,13 @@ class ProfileRepository {
         throw UnauthorizedException('No authentication token found');
       }
 
-      // Based on Postman collection: GET /api/users/{userId}
-      // We need to get the current user ID from token or store it during login
-      // For now, we'll use a method that gets the current user's profile
       final response = await apiClient.get(
-        'users/me', // This endpoint might not exist, alternative is to store user ID
+        'users/me',
         headers: {'Authorization': 'Bearer $token'},
       );
 
       print('Get profile response: $response');
 
-      // Extract user data from response
       Map<String, dynamic> userData = {};
       
       if (response.containsKey('data')) {
@@ -57,6 +56,7 @@ class ProfileRepository {
     String? name,
     String? email,
     String? password,
+    String? profilePicture,
   }) async {
     try {
       final token = await TokenManager.getToken();
@@ -65,11 +65,11 @@ class ProfileRepository {
         throw UnauthorizedException('No authentication token found');
       }
 
-      // Based on Postman collection: PATCH /api/users/{userId}
       final updateData = <String, dynamic>{};
       if (name != null && name.isNotEmpty) updateData['name'] = name;
       if (email != null && email.isNotEmpty) updateData['email'] = email;
       if (password != null && password.isNotEmpty) updateData['password'] = password;
+      if (profilePicture != null && profilePicture.isNotEmpty) updateData['profilePicture'] = profilePicture;
 
       final response = await apiClient.patch(
         'users/$userId',
@@ -79,7 +79,6 @@ class ProfileRepository {
 
       print('Update profile response: $response');
 
-      // Extract updated user data
       Map<String, dynamic> userData = {};
       
       if (response.containsKey('data')) {
@@ -100,6 +99,69 @@ class ProfileRepository {
     } catch (e) {
       print('Error in updateProfile: $e');
       throw ApiException('Failed to update profile: ${e.toString()}');
+    }
+  }
+
+  // Upload profile picture
+  Future<String> uploadProfilePicture(File imageFile) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      // Create multipart request for file upload
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${apiClient.baseUrl}/upload/profile'),
+      );
+
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+      });
+
+      // Add the image file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('Upload response status: ${response.statusCode}');
+      print('Upload response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        
+        // Extract the file URL from response
+        if (responseData.containsKey('data')) {
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            return data['url'] ?? data['fileUrl'] ?? data['path'];
+          } else if (data is String) {
+            return data;
+          }
+        } else if (responseData.containsKey('url')) {
+          return responseData['url'];
+        } else if (responseData.containsKey('fileUrl')) {
+          return responseData['fileUrl'];
+        }
+        
+        return responseData['message'] ?? '';
+      } else {
+        throw ApiException('Failed to upload image: ${response.statusCode}');
+      }
+      
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in uploadProfilePicture: $e');
+      throw ApiException('Failed to upload profile picture: ${e.toString()}');
     }
   }
 }
