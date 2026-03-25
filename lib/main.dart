@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project_management_app/features/dashboard/data/repositories/dashboard_repository.dart';
-import 'package:project_management_app/features/dashboard/presentation/pages/admin_dashboard_pages.dart';
+import 'package:project_management_app/features/dashboard/presentation/pages/dashboard_pages.dart';
 import 'package:project_management_app/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:project_management_app/features/teams/data/repositories/team_repository.dart';
 import 'package:project_management_app/features/teams/presentation/providers/team_provider.dart';

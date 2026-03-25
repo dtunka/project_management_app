@@ -260,9 +260,6 @@ class _TeamsPageState extends State<TeamsPage> {
       ),
     );
   }
-
-  // Show edit team dialog with member selection
- // Show edit team dialog with member selection
 // Show edit team dialog with member selection
 Future<void> _showEditTeamDialog(BuildContext context, TeamModel team) async {
   final nameController = TextEditingController(text: team.name);
