@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:project_management_app/features/dashboard/data/repositories/dashboard_repository.dart';
 import 'package:project_management_app/features/dashboard/presentation/pages/dashboard_pages.dart';
 import 'package:project_management_app/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:project_management_app/features/profile/data/repositories/profile_repository.dart';
+import 'package:project_management_app/features/profile/presentation/providers/profile_provider.dart';
 import 'package:project_management_app/features/teams/data/repositories/team_repository.dart';
 import 'package:project_management_app/features/teams/presentation/providers/team_provider.dart';
 import 'package:project_management_app/features/users/data/repositories/user_repository.dart';
@@ -40,33 +42,29 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
-            return AuthProvider(
-              AuthRepositoryImpl(client), 
-            );
+            return AuthProvider(AuthRepositoryImpl(client));
           },
         ),
-        
+
         // 3. Admin Dashboard Provider
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
             return DashboardProvider(
-              repository: DashboardRepository(apiClient: client), 
+              repository: DashboardRepository(apiClient: client),
             );
           },
         ),
-        
-        // 4. User Provider 
+
+        // 4. User Provider
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
-            return UserProvider(
-              repository: UserRepository(apiClient: client),
-            );
+            return UserProvider(repository: UserRepository(apiClient: client));
           },
         ),
-        
-        // 5. Projects Provider 
+
+        // 5. Projects Provider
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
@@ -79,8 +77,17 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) {
             final client = Provider.of<ApiClient>(context, listen: false);
-            return TeamProvider(
-              repository: TeamRepository(apiClient: client),
+            return TeamProvider(repository: TeamRepository(apiClient: client));
+          },
+        ),
+        // Add this import
+
+        //7. Profile Provider
+        ChangeNotifierProvider(
+          create: (context) {
+            final client = Provider.of<ApiClient>(context, listen: false);
+            return ProfileProvider(
+              repository: ProfileRepository(apiClient: client),
             );
           },
         ),
