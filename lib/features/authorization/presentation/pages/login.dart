@@ -179,7 +179,7 @@ class _LoginPageState extends State<LoginPage> {
     // check role from provider.user
     if (provider.user != null) {
       if (provider.user!.role == "admin") {
-        Navigator.pushReplacementNamed(context, '/adminDashboard');
+        Navigator.pushReplacementNamed(context, '/dashboard');
       }
     }
   }

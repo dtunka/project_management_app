@@ -1,8 +1,9 @@
-import 'dart:io';
+import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:image_picker/image_picker.dart';
 import '../providers/profile_provider.dart';
+import '../../data/models/profile_model.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -19,10 +20,9 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _nameError;
   String? _emailError;
   String? _passwordError;
-  File? _selectedImage;
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
   bool _isUploadingImage = false;
-
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -50,22 +50,35 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
-  // Pick image from gallery
+  // Web-compatible image picker
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 85,
-      );
+      final input = html.FileUploadInputElement();
+      input.accept = 'image/*';
+      input.multiple = false;
       
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-        await _uploadProfilePicture();
-      }
+      input.onChange.listen((event) async {
+        final files = input.files;
+        if (files != null && files.isNotEmpty) {
+          final file = files[0];
+          final reader = html.FileReader();
+          
+          reader.onLoadEnd.listen((event) async {
+            final imageData = reader.result as Uint8List?;
+            if (imageData != null) {
+              setState(() {
+                _selectedImageBytes = imageData;
+                _selectedImageName = file.name;
+              });
+              await _uploadProfilePicture(imageData, file.name);
+            }
+          });
+          
+          reader.readAsArrayBuffer(file);
+        }
+      });
+      
+      input.click();
     } catch (e) {
       print('Error picking image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,87 +90,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Take photo with camera
-  Future<void> _takePhoto() async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 85,
-      );
-      
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-        await _uploadProfilePicture();
-      }
-    } catch (e) {
-      print('Error taking photo: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to take photo'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  // Show image source dialog
-  void _showImageSourceDialog() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              const Text(
-                'Change Profile Picture',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: Colors.blue),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.green),
-                title: const Text('Take a Photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _takePhoto();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.cancel, color: Colors.red),
-                title: const Text('Cancel'),
-                onTap: () => Navigator.pop(context),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   // Upload profile picture
-  Future<void> _uploadProfilePicture() async {
-    if (_selectedImage == null) return;
-
+  Future<void> _uploadProfilePicture(Uint8List imageBytes, String fileName) async {
     final provider = Provider.of<ProfileProvider>(context, listen: false);
     final profile = provider.profile;
     if (profile == null) return;
@@ -166,7 +100,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _isUploadingImage = true;
     });
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -182,13 +115,12 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
 
-    final imageUrl = await provider.uploadProfilePicture(_selectedImage!);
+    final imageUrl = await provider.uploadProfilePicture(imageBytes, fileName);
 
     if (context.mounted) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
 
-      if (imageUrl != null) {
-        // Update profile with new picture URL
+      if (imageUrl != null && imageUrl.isNotEmpty) {
         final success = await provider.updateProfile(
           userId: profile.id,
           profilePicture: imageUrl,
@@ -202,7 +134,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           );
           setState(() {
-            _selectedImage = null;
+            _selectedImageBytes = null;
+            _selectedImageName = null;
           });
         } else if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -290,7 +223,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (profile == null) return;
 
-    // Validate fields
     bool hasError = false;
     
     if (_nameController.text.trim().isEmpty) {
@@ -318,7 +250,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (hasError) return;
 
-    // Show loading indicator
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -481,7 +412,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       Center(
                         child: Stack(
                           children: [
-                            // Profile Image
                             _isUploadingImage
                                 ? Container(
                                     width: 100,
@@ -499,12 +429,12 @@ class _ProfilePageState extends State<ProfilePage> {
                                     height: 100,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      image: _selectedImage != null
+                                      image: _selectedImageBytes != null
                                           ? DecorationImage(
-                                              image: FileImage(_selectedImage!),
+                                              image: MemoryImage(_selectedImageBytes!),
                                               fit: BoxFit.cover,
                                             )
-                                          : (profile.profilePicture != null
+                                          : (profile.profilePicture != null && profile.profilePicture!.isNotEmpty
                                               ? DecorationImage(
                                                   image: NetworkImage(profile.profilePicture!),
                                                   fit: BoxFit.cover,
@@ -512,7 +442,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                               : null),
                                       color: Colors.blue,
                                     ),
-                                    child: _selectedImage == null && profile.profilePicture == null
+                                    child: _selectedImageBytes == null && 
+                                           (profile.profilePicture == null || profile.profilePicture!.isEmpty)
                                         ? Center(
                                             child: Text(
                                               profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
@@ -525,13 +456,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                           )
                                         : null,
                                   ),
-                            
-                            // Edit Icon Button
                             Positioned(
                               bottom: 0,
                               right: 0,
                               child: GestureDetector(
-                                onTap: _showImageSourceDialog,
+                                onTap: _pickImage,
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
@@ -577,29 +506,57 @@ class _ProfilePageState extends State<ProfilePage> {
                       const Divider(),
                       const SizedBox(height: 16),
 
-                      // Name Field
-                      _buildTextField(
-                        label: 'Full Name',
-                        controller: _nameController,
-                        icon: Icons.person_outline,
-                        enabled: _isEditing,
-                        errorText: _nameError,
-                      ),
-                      const SizedBox(height: 16),
+                      if (!_isEditing) ...[
+                        // DISPLAY MODE - Styled information cards
+                        _buildInfoCard(
+                          icon: Icons.person_outline,
+                          label: 'Full Name',
+                          value: profile.name,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInfoCard(
+                          icon: Icons.email_outlined,
+                          label: 'Email Address',
+                          value: profile.email,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInfoCard(
+                          icon: Icons.badge_outlined,
+                          label: 'User ID',
+                          value: profile.id,
+                          color: Colors.grey,
+                          isCopyable: true,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInfoCard(
+                          icon: Icons.calendar_today,
+                          label: 'Member Since',
+                          value: _formatDate(profile.createdAt),
+                          color: Colors.grey,
+                        ),
+                      ] else ...[
+                        // EDIT MODE - Text fields
+                        _buildTextField(
+                          label: 'Full Name',
+                          controller: _nameController,
+                          icon: Icons.person_outline,
+                          enabled: _isEditing,
+                          errorText: _nameError,
+                        ),
+                        const SizedBox(height: 16),
 
-                      // Email Field
-                      _buildTextField(
-                        label: 'Email Address',
-                        controller: _emailController,
-                        icon: Icons.email_outlined,
-                        enabled: _isEditing,
-                        errorText: _emailError,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
+                        _buildTextField(
+                          label: 'Email Address',
+                          controller: _emailController,
+                          icon: Icons.email_outlined,
+                          enabled: _isEditing,
+                          errorText: _emailError,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 16),
 
-                      // Password Field (only shown when editing)
-                      if (_isEditing) ...[
                         _buildTextField(
                           label: 'New Password',
                           controller: _passwordController,
@@ -610,25 +567,23 @@ class _ProfilePageState extends State<ProfilePage> {
                           helperText: 'Leave empty to keep current password',
                         ),
                         const SizedBox(height: 16),
+
+                        // Read-only fields in edit mode
+                        _buildReadOnlyField(
+                          label: 'User ID',
+                          value: profile.id,
+                          icon: Icons.badge_outlined,
+                        ),
+                        const SizedBox(height: 12),
+
+                        _buildReadOnlyField(
+                          label: 'Member Since',
+                          value: _formatDate(profile.createdAt),
+                          icon: Icons.calendar_today,
+                        ),
                       ],
-
-                      // User ID (read-only)
-                      _buildReadOnlyField(
-                        label: 'User ID',
-                        value: profile.id,
-                        icon: Icons.badge_outlined,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Member Since
-                      _buildReadOnlyField(
-                        label: 'Member Since',
-                        value: _formatDate(profile.createdAt),
-                        icon: Icons.calendar_today,
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Action Buttons
+                        const SizedBox(height: 24),
+                       // Action Buttons
                       if (_isEditing)
                         Row(
                           children: [
@@ -697,7 +652,73 @@ class _ProfilePageState extends State<ProfilePage> {
       },
     );
   }
-
+  // Styled info card for displaying user information
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    bool isCopyable = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          if (isCopyable)
+            IconButton(
+              icon: Icon(Icons.copy, size: 18, color: Colors.grey[400]),
+              onPressed: () {
+                // Copy to clipboard functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('ID copied to clipboard'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -717,50 +738,57 @@ class _ProfilePageState extends State<ProfilePage> {
         labelText: label,
         prefixIcon: Icon(icon, size: 20),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         errorText: errorText,
         helperText: helperText,
         helperStyle: TextStyle(fontSize: 11, color: Colors.grey[600]),
         filled: true,
         fillColor: enabled ? Colors.white : Colors.grey[50],
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
       ),
     );
   }
-
   Widget _buildReadOnlyField({
     required String label,
     required String value,
     required IconData icon,
   }) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[600]),
+          const SizedBox(width: 16),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 14),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
-
   Color _getRoleColor(String role) {
     switch (role.toLowerCase()) {
       case 'admin':

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../../../../core/networks/api_client.dart';
 import '../../../../core/networks/token_manager.dart';
@@ -102,8 +102,8 @@ class ProfileRepository {
     }
   }
 
-  // Upload profile picture
-  Future<String> uploadProfilePicture(File imageFile) async {
+  // Upload profile picture - Web compatible
+  Future<String> uploadProfilePicture(Uint8List imageBytes, String fileName) async {
     try {
       final token = await TokenManager.getToken();
 
@@ -121,13 +121,14 @@ class ProfileRepository {
         'Authorization': 'Bearer $token',
       });
 
-      // Add the image file
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'file',
-          imageFile.path,
-        ),
+      // Create multipart file from bytes
+      final multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        imageBytes,
+        filename: fileName,
       );
+
+      request.files.add(multipartFile);
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -142,7 +143,7 @@ class ProfileRepository {
         if (responseData.containsKey('data')) {
           final data = responseData['data'];
           if (data is Map<String, dynamic>) {
-            return data['url'] ?? data['fileUrl'] ?? data['path'];
+            return data['url'] ?? data['fileUrl'] ?? data['path'] ?? '';
           } else if (data is String) {
             return data;
           }

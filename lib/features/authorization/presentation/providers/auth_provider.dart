@@ -1,50 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:project_management_app/features/authorization/domain/entities/user.dart';
+import '../../data/repositories/auth_repo_impl.dart';
 
-import '../../domain/entities/user.dart';
-import '../../domain/repositories/auth_repository.dart';
+class AuthProvider with ChangeNotifier {
+  final AuthRepositoryImpl authRepository;
+  
+  AuthProvider(this.authRepository);
 
-class AuthProvider extends ChangeNotifier {
-  final AuthRepository repository;
-
-  AuthProvider(this.repository);
-
-  User? user;
-  bool isLoading = false;
-  bool userRegistered = false;
-  String? error;
- 
-  Future<void> login(String email, String password) async {
-    isLoading = true;
-    error = null;
-    print("login page");
+  User? _user; // Change to User? (from domain)
+  bool _isLoading = false;
+  String? _errorMessage;
+  bool _isRegistered = false;
+  User? get user => _user;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+  bool get isRegistered => _isRegistered;
+  Future<bool> login(String email, String password) async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
-    print("login page is loaded");
-    try {
-      user = await repository.login(email, password);
-    } catch (e) {
-      error = e.toString();
-      print(e);
-    }
 
-    isLoading = false;
+    try {
+      final user = await authRepository.login(email, password);
+      _user = user; // Now this works because both are User type
+      _isLoading = false;
+      notifyListeners();
+      
+      print('Login successful: ${user.name} - Role: ${user.role}');
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      print('Login error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> register(String email, String password, String role) async {
+    _isLoading = true;
+    _errorMessage = null;
+      _isRegistered = false; 
+    notifyListeners();
+
+    try {
+      final user = await authRepository.register(email, password, role);
+      _user = user;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void logout() {
+    _user = null;
     notifyListeners();
   }
 
-  Future<void> register(String email, String password, String role) async {
-    isLoading = true;
-    error = null;
-    userRegistered = false;
-    notifyListeners();
-
-    try {
-      user = await repository.register(email, password, role);
-      userRegistered = true;
-    } catch (e) {
-      error = e.toString();
-      print(e);
-    }
-
-    isLoading = false;
+  void clearError() {
+    _errorMessage = null;
     notifyListeners();
   }
 }

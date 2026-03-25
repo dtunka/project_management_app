@@ -4,7 +4,7 @@ class SidebarMenuItem {
   final IconData icon;
   final String title;
   final int index;
-  final List<String> roles; // Allowed roles
+  final List<String> roles;
 
   SidebarMenuItem({
     required this.icon,
@@ -41,40 +41,46 @@ class SidebarMenu extends StatelessWidget {
         roles: ['admin', 'manager', 'member'],
       ),
       SidebarMenuItem(
+        icon: Icons.task,
+        title: 'Tasks',
+        index: 2,
+        roles: ['admin', 'manager', 'member'], // Admin now has tasks too
+      ),
+      SidebarMenuItem(
         icon: Icons.people,
         title: 'Users',
-        index: 2,
-        roles: ['admin'], // Only admin can see users
+        index: 3,
+        roles: ['admin'], // Only admin
       ),
       SidebarMenuItem(
         icon: Icons.groups,
         title: 'Teams',
-        index: 3,
-        roles: ['admin', 'manager'], // Admin and manager can see teams
+        index: 4,
+        roles: ['admin', 'manager'],
       ),
       SidebarMenuItem(
         icon: Icons.bar_chart,
         title: 'Reports',
-        index: 4,
-        roles: ['admin', 'manager'], // Admin and manager can see reports
+        index: 5,
+        roles: ['admin', 'manager'],
       ),
       SidebarMenuItem(
         icon: Icons.timeline,
         title: 'Activities',
-        index: 5,
-        roles: ['admin'], // Only admin can see activities
+        index: 6,
+        roles: ['admin', 'manager'],
       ),
       SidebarMenuItem(
         icon: Icons.settings,
         title: 'Settings',
-        index: 6,
-        roles: ['admin'], // Only admin can see settings
+        index: 7,
+        roles: ['admin', 'manager'],
       ),
       SidebarMenuItem(
         icon: Icons.person,
         title: 'Profile',
-        index: 7,
-        roles: ['admin', 'manager', 'member'], // Everyone can see profile
+        index: 8,
+        roles: ['admin', 'manager', 'member'],
       ),
     ];
   }
@@ -85,37 +91,19 @@ class SidebarMenu extends StatelessWidget {
     final filteredItems = menuItems.where((item) => item.roles.contains(userRole)).toList();
 
     return Column(
-      children: [
-        const SizedBox(height: 30),
-        const Text(
-          "TaskFlow",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+      children: filteredItems.map((item) {
+        return ListTile(
+          selected: selectedIndex == item.index,
+          selectedTileColor: Colors.white24,
+          leading: Icon(item.icon, color: Colors.white, size: 20),
+          title: Text(
+            item.title,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
           ),
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: filteredItems.map((item) {
-                return ListTile(
-                  selected: selectedIndex == item.index,
-                  selectedTileColor: Colors.white24,
-                  leading: Icon(item.icon, color: Colors.white, size: 20),
-                  title: Text(
-                    item.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                  dense: true,
-                  onTap: () => onItemSelected(item.index),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-      ],
+          dense: true,
+          onTap: () => onItemSelected(item.index),
+        );
+      }).toList(),
     );
   }
 }

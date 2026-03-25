@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../data/models/profile_model.dart';
 import '../../data/repositories/profile_repository.dart';
@@ -47,13 +47,13 @@ class ProfileProvider with ChangeNotifier {
   }
 
   // Upload profile picture
-  Future<String?> uploadProfilePicture(File imageFile) async {
+  Future<String?> uploadProfilePicture(Uint8List imageBytes, String fileName) async {
     _isUploading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final imageUrl = await repository.uploadProfilePicture(imageFile);
+      final imageUrl = await repository.uploadProfilePicture(imageBytes, fileName);
       _isUploading = false;
       notifyListeners();
       return imageUrl;

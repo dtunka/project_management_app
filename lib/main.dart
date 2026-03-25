@@ -8,7 +8,6 @@ import 'package:project_management_app/features/teams/data/repositories/team_rep
 import 'package:project_management_app/features/teams/presentation/providers/team_provider.dart';
 import 'package:project_management_app/features/users/data/repositories/user_repository.dart';
 import 'package:project_management_app/features/users/presentation/providers/user_provider.dart';
-
 import 'package:project_management_app/features/projects/data/repositories/project_repository.dart';
 import 'package:project_management_app/features/projects/presentation/providers/project_provider.dart';
 import 'package:provider/provider.dart';
@@ -100,7 +99,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/login': (context) => const LoginPage(),
           '/register': (context) => const RegisterPage(),
-          '/adminDashboard': (context) => const AdminDashboardPage(),
+          '/dashboard': (context) => const DashboardPage(),
         },
       ),
     );

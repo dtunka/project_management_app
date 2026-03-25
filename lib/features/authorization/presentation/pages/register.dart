@@ -34,7 +34,7 @@ class _RegisterPage extends State<RegisterPage> {
         "member", // default role (admin can change later)
       );
 
-      if (authProvider.userRegistered) {
+      if (authProvider.isRegistered) {
 
         final snackbarDelay = ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -50,7 +50,7 @@ class _RegisterPage extends State<RegisterPage> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.error ?? "Registration Failed"),
+            content: Text(authProvider.errorMessage ?? "Registration Failed"),
           ),
         );
       }

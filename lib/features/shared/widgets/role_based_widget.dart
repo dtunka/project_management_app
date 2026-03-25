@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project_management_app/features/authorization/presentation/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
-import '../../auth/presentation/providers/auth_provider.dart';
 
 /// A widget that shows its children only if the user has the required role
 class RoleBasedWidget extends StatelessWidget {
