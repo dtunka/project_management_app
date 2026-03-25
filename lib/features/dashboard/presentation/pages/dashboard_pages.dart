@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project_management_app/features/authorization/presentation/providers/auth_provider.dart';
+import 'package:project_management_app/features/profile/presentation/pages/profile_pages.dart';
 import 'package:project_management_app/features/projects/presentation/pages/projects_page.dart';
 import 'package:project_management_app/features/teams/presentation/pages/teams_page.dart';
 import 'package:project_management_app/features/users/presentation/pages/user_page.dart';
@@ -458,7 +459,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return const Center(child: Text("Settings Page"));
 
       case 7:
-        return const Center(child: Text("Profile Page"));
+        return const ProfilePage();
 
       default:
         return buildDashboard(provider);
