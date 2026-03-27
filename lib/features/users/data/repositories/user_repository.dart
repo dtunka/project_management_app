@@ -21,8 +21,8 @@ class UserRepository {
         headers: {"Authorization": "Bearer $token"},
       );
       
-      print("Get Users Response Type: ${response.runtimeType}");
-      print("Get Users Response: $response");
+      // print("Get Users Response Type: ${response.runtimeType}");
+      // print("Get Users Response: $response");
       
       List<UserModel> users = [];
       

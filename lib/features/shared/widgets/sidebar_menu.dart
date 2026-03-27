@@ -44,13 +44,13 @@ class SidebarMenu extends StatelessWidget {
         icon: Icons.task,
         title: 'Tasks',
         index: 2,
-        roles: ['admin', 'manager', 'member'], // Admin now has tasks too
+        roles: [ 'manager', 'member'], 
       ),
       SidebarMenuItem(
         icon: Icons.people,
         title: 'Users',
         index: 3,
-        roles: ['admin'], // Only admin
+        roles: ['admin','manager'], // Only admin and manager
       ),
       SidebarMenuItem(
         icon: Icons.groups,

@@ -13,6 +13,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
 
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -168,22 +169,33 @@ class _LoginPageState extends State<LoginPage> {
 
                         child: ElevatedButton(
 
-                          onPressed: () async {
-  if (_formKey.currentState!.validate()) {
+                          onPressed: _isLoading ? null : () async {
+                            if (_formKey.currentState!.validate()) {
+                              setState(() => _isLoading = true);
+                              
+                              final success = await provider.login(
+                                emailController.text.trim(),
+                                passwordController.text.trim(),
+                              );
 
-    await provider.login(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+                              setState(() => _isLoading = false);
 
-    // check role from provider.user
-    if (provider.user != null) {
-      if (provider.user!.role == "admin") {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
-    }
-  }
-},
+                              if (success && mounted) {
+                                final userRole = provider.user?.role?.toLowerCase();
+                                
+                                // Navigate to dashboard regardless of role
+                                // DashboardPage will handle the content based on role
+                                Navigator.pushReplacementNamed(context, '/dashboard');
+                              } else if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(provider.errorMessage ?? 'Login failed'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
 
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF194F87),
@@ -192,14 +204,23 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
 
-                          child: const Text(
-                            "Login to PM",
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  "Login to PM",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
                       ),
 
@@ -221,14 +242,12 @@ class _LoginPageState extends State<LoginPage> {
                         child: ElevatedButton(
 
                           onPressed: () {
-
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const RegisterPage(),
                               ),
                             );
-
                           },
 
                           style: ElevatedButton.styleFrom(
