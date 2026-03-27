@@ -12,6 +12,15 @@ class ManagerDashboardContent extends StatefulWidget {
 }
 
 class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
+  String _dueFilter = 'week'; // 'week', 'two_weeks', 'month'
+  
+  // Due date filter options
+  final Map<String, String> _filterOptions = {
+    'week': 'Due This Week',
+    'two_weeks': 'Due in 2 Weeks',
+    'month': 'Due This Month',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -30,45 +39,48 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
     });
   }
 
+  int _getDaysForFilter() {
+    switch (_dueFilter) {
+      case 'week':
+        return 7;
+      case 'two_weeks':
+        return 14;
+      case 'month':
+        return 30;
+      default:
+        return 7;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dashboardProvider = Provider.of<DashboardProvider>(context);
     final projectProvider = Provider.of<ProjectProvider>(context);
-    final dashboard = dashboardProvider.dashboard;
+    
+    // Get manager's projects
+    final myProjects = projectProvider.projects;
+    final stats = projectProvider.getProjectStatistics();
+    final dueSoonProjects = projectProvider.getProjectsDueWithinDays(_getDaysForFilter());
+    final overdueProjects = projectProvider.getOverdueProjects();
+    
+    // Get projects by status
+    final inProgressProjects = projectProvider.getProjectsByStatus('in_progress');
+    final onHoldProjects = projectProvider.getProjectsByStatus('on_hold');
+    final completedProjects = projectProvider.getProjectsByStatus('completed');
+    final cancelledProjects = projectProvider.getProjectsByStatus('cancelled');
 
-    if (dashboardProvider.isLoading && dashboard == null) {
+    if (projectProvider.isLoading && myProjects.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Loading dashboard...'),
+            Text('Loading your projects...'),
           ],
         ),
       );
     }
-
-    // Get manager's projects (already filtered by provider)
-    final myProjects = projectProvider.projects;
-    
-    // Calculate stats
-    final totalProjects = myProjects.length;
-    final totalTasks = myProjects.fold(0, (sum, project) => sum + project.totalTasks);
-    final completedTasks = myProjects.fold(0, (sum, project) => sum + project.completedTasks);
-    final completionRate = totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
-    
-    // Get due soon projects (within 7 days)
-    final dueSoonProjects = myProjects.where((project) {
-      final daysUntilDeadline = project.deadline.difference(DateTime.now()).inDays;
-      return daysUntilDeadline <= 7 && daysUntilDeadline >= 0 && project.status != 'completed';
-    }).toList();
-
-    // Get projects by status
-    final inProgressProjects = myProjects.where((p) => p.status == 'in_progress').toList();
-    final onHoldProjects = myProjects.where((p) => p.status == 'on_hold').toList();
-    final completedProjects = myProjects.where((p) => p.status == 'completed').toList();
-    final cancelledProjects = myProjects.where((p) => p.status == 'cancelled').toList();
 
     return SingleChildScrollView(
       child: Column(
@@ -92,7 +104,7 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
               Expanded(
                 child: StatCard(
                   title: "MY PROJECTS",
-                  value: totalProjects.toString(),
+                  value: stats['totalProjects'].toString(),
                   icon: Icons.folder,
                   color: Colors.blue,
                 ),
@@ -113,19 +125,41 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
             children: [
               Expanded(
                 child: StatCard(
-                  title: "TOTAL TASKS",
-                  value: totalTasks.toString(),
-                  icon: Icons.task,
-                  color: Colors.purple,
+                  title: "OVERDUE",
+                  value: overdueProjects.length.toString(),
+                  icon: Icons.error,
+                  color: Colors.red,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: StatCard(
+                  title: "TOTAL TASKS",
+                  value: stats['totalTasks'].toString(),
+                  icon: Icons.task,
+                  color: Colors.purple,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: StatCard(
                   title: "COMPLETION RATE",
-                  value: "$completionRate%",
+                  value: "${stats['completionRate']}%",
                   icon: Icons.pie_chart,
                   color: Colors.green,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: StatCard(
+                  title: "COMPLETED TASKS",
+                  value: stats['completedTasks'].toString(),
+                  icon: Icons.check_circle,
+                  color: Colors.teal,
                 ),
               ),
             ],
@@ -171,16 +205,83 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
           ),
           const SizedBox(height: 24),
 
-          // Projects List
+          // Due Soon Projects Section with Filter
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Due Soon Projects",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              // Filter Dropdown
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButton<String>(
+                  value: _dueFilter,
+                  underline: const SizedBox(),
+                  icon: const Icon(Icons.arrow_drop_down),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _dueFilter = newValue!;
+                    });
+                  },
+                  items: _filterOptions.entries.map((entry) {
+                    return DropdownMenuItem(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          if (dueSoonProjects.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(40),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.event_busy, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No projects due ${_filterOptions[_dueFilter]?.toLowerCase() ?? 'soon'}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: dueSoonProjects.length,
+              itemBuilder: (context, index) {
+                final project = dueSoonProjects[index];
+                return _buildProjectCard(project, context);
+              },
+            ),
+          
+          const SizedBox(height: 24),
+
+          // All Projects Section
           const Text(
-            "My Projects",
+            "All My Projects",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           
-          if (projectProvider.isLoading && myProjects.isEmpty)
-            const Center(child: CircularProgressIndicator())
-          else if (myProjects.isEmpty)
+          if (myProjects.isEmpty)
             Container(
               padding: const EdgeInsets.all(40),
               decoration: BoxDecoration(
@@ -193,8 +294,8 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
                     Icon(Icons.folder_open, size: 48, color: Colors.grey),
                     SizedBox(height: 12),
                     Text(
-                      'No projects assigned',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                      'No projects assigned to you',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -207,7 +308,152 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
               itemCount: myProjects.length,
               itemBuilder: (context, index) {
                 final project = myProjects[index];
-                return _buildProjectCard(project, context);
+                final bool isExpanded = projectProvider.expandedIndex == index;
+                
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: Container(
+                          width: 8,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(project.status),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        title: Text(
+                          project.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              project.description,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.groups, size: 12, color: Colors.grey[500]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  project.team.name,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(project.status).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _getStatusText(project.status),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: _getStatusColor(project.status),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: Icon(
+                            isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                            color: Colors.grey[600],
+                          ),
+                          onPressed: () => projectProvider.toggleExpand(index),
+                        ),
+                      ),
+                      if (isExpanded)
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Progress Section
+                              const Text(
+                                'Progress',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: LinearProgressIndicator(
+                                      value: project.progress / 100,
+                                      backgroundColor: Colors.grey[200],
+                                      valueColor: AlwaysStoppedAnimation(_getStatusColor(project.status)),
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    '${project.progress}%',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: _getStatusColor(project.status),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Task Breakdown
+                              const Text(
+                                'Task Breakdown',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  _buildTaskBreakdownItem('Completed', project.completedTasks, Colors.green),
+                                  const SizedBox(width: 8),
+                                  _buildTaskBreakdownItem('In Progress', project.inProgressTasks, Colors.blue),
+                                  const SizedBox(width: 8),
+                                  _buildTaskBreakdownItem('Pending', project.pendingTasks, Colors.orange),
+                                  const SizedBox(width: 8),
+                                  _buildTaskBreakdownItem('Overdue', project.overdueTasks, Colors.red),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Project Details
+                              const Text(
+                                'Project Details',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildDetailRow(Icons.calendar_today, 'Start Date', _formatDate(project.startDate)),
+                              _buildDetailRow(Icons.event, 'Deadline', _formatDate(project.deadline)),
+                              _buildDetailRow(Icons.person, 'Team', project.team.name),
+                              _buildDetailRow(Icons.people, 'Members', '${project.contributors.length} contributors'),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
               },
             ),
           
@@ -263,208 +509,10 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
     );
   }
 
-  Widget _buildProjectCard(project, BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: ExpansionTile(
-        leading: Container(
-          width: 8,
-          height: 40,
-          decoration: BoxDecoration(
-            color: _getStatusColor(project.status),
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-        title: Text(
-          project.name,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              project.description,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.groups, size: 12, color: Colors.grey[500]),
-                const SizedBox(width: 4),
-                Text(
-                  project.team.name,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(project.status).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _getStatusText(project.status),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _getStatusColor(project.status),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Progress Section
-                const Text(
-                  'Task Progress',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildProgressIndicator(
-                        project.progress,
-                        _getStatusColor(project.status),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor(project.status).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            '${project.progress}%',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: _getStatusColor(project.status),
-                            ),
-                          ),
-                          Text(
-                            'Complete',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Task Breakdown
-                const Text(
-                  'Task Breakdown',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildTaskBreakdownItem('Completed', project.completedTasks, Colors.green),
-                    const SizedBox(width: 12),
-                    _buildTaskBreakdownItem('In Progress', project.inProgressTasks, Colors.blue),
-                    const SizedBox(width: 12),
-                    _buildTaskBreakdownItem('Pending', project.pendingTasks, Colors.orange),
-                    const SizedBox(width: 12),
-                    _buildTaskBreakdownItem('Overdue', project.overdueTasks, Colors.red),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Project Details
-                const Text(
-                  'Project Details',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildDetailRow(Icons.people, 'Team', project.team.name),
-                _buildDetailRow(Icons.calendar_today, 'Start Date', _formatDate(project.startDate)),
-                _buildDetailRow(Icons.event, 'Deadline', _formatDate(project.deadline)),
-                _buildDetailRow(Icons.person, 'Manager', project.manager.name),
-                
-                const SizedBox(height: 12),
-                
-                // View All Tasks Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Navigate to project tasks page
-                    },
-                    icon: const Icon(Icons.task, size: 16),
-                    label: const Text('View All Tasks'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressIndicator(int progress, Color color) {
-    return Container(
-      height: 8,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: FractionallySizedBox(
-        widthFactor: progress / 100,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTaskBreakdownItem(String label, int count, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
@@ -474,7 +522,7 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
             Text(
               count.toString(),
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -500,7 +548,7 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
           Icon(icon, size: 14, color: Colors.grey[600]),
           const SizedBox(width: 8),
           SizedBox(
-            width: 70,
+            width: 80,
             child: Text(
               '$label:',
               style: TextStyle(
@@ -517,6 +565,65 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProjectCard(project, BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: ListTile(
+        leading: Container(
+          width: 8,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _getStatusColor(project.status),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+        title: Text(
+          project.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              project.description,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Due: ${_formatDate(project.deadline)} • ${project.team.name}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: _getStatusColor(project.status).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            _getStatusText(project.status),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _getStatusColor(project.status),
+            ),
+          ),
+        ),
+        onTap: () {
+          // Navigate to project details
+        },
       ),
     );
   }

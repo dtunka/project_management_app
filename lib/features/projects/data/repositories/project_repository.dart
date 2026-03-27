@@ -7,11 +7,60 @@ class ProjectRepository {
   final ApiClient apiClient;
 
   ProjectRepository({required this.apiClient});
+  // Add this method to get projects by manager ID
+Future<List<ProjectModel>> getProjectsByManager(String managerId) async {
+  try {
+    final token = await TokenManager.getToken();
+    
+    print('=== GET PROJECTS BY MANAGER ===');
+    print('Manager ID: $managerId');
+    print('Token exists: ${token != null}');
+    
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
+    }
+    
+    final response = await apiClient.get(
+      'projects/manager/$managerId',  // Use manager-specific endpoint
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    print('Response status: Success');
+    print('Response keys: ${response.keys}');
+    
+    List<ProjectModel> projects = [];
+    
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is List) {
+        projects = data.map((json) => ProjectModel.fromJson(json)).toList();
+        print('Found ${projects.length} projects for manager');
+        for (var project in projects) {
+          print('  - ${project.name} (Status: ${project.status})');
+        }
+      }
+    }
+    
+    return projects;
+  } on ApiException catch (e) {
+    print('API Error in getProjectsByManager: $e');
+    rethrow;
+  } catch (e) {
+    print('Error in getProjectsByManager: $e');
+    throw ApiException('Failed to fetch manager projects: ${e.toString()}');
+  }
+}
 
   Future<List<ProjectModel>> getAllProjects() async {
     try {
       final token = await TokenManager.getToken();
-      
+       print('=== DEBUG PROJECTS REQUEST ===');
+    print('Token exists: ${token != null}');
+    if (token != null) {
+      print('Token preview: ${token.substring(0, token.length > 20 ? 20 : token.length)}...');
+    }
+    
+   
       if (token == null) {
         throw UnauthorizedException('No authentication token found');
       }
@@ -23,10 +72,21 @@ class ProjectRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-     // print('Projects response: $response');
-
+      print('Response status: Success');
+    print('Response keys: ${response.keys}');
       // Handle different response structures from ApiClient
       List<ProjectModel> projects = [];
+        if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is List) {
+        projects = data.map((json) => ProjectModel.fromJson(json)).toList();
+        print('Found ${projects.length} projects');
+        for (var project in projects) {
+          print('  - ${project.name} (Manager: ${project.manager.name}, ID: ${project.manager.id})');
+        }
+      }
+    } 
+     
 
       // Case 1: Response has 'data' field (most common with your ApiClient)
       if (response.containsKey('data')) {

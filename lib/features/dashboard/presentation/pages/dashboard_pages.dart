@@ -4,6 +4,7 @@ import 'package:project_management_app/features/dashboard/presentation/pages/wid
 import 'package:project_management_app/features/dashboard/presentation/pages/widgets/manager_dashboard_content.dart';
 import 'package:project_management_app/features/dashboard/presentation/pages/widgets/member_dashboard_content.dart';
 import 'package:project_management_app/features/dashboard/presentation/providers/dashboard_provider.dart';
+import 'package:project_management_app/features/projects/presentation/providers/project_provider.dart';
 import 'package:provider/provider.dart';
 import '../../../projects/presentation/pages/projects_page.dart';
 import '../../../teams/presentation/pages/teams_page.dart';
@@ -101,9 +102,27 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final dashboardProvider = Provider.of<DashboardProvider>(context);
-
+   final authProvider = Provider.of<AuthProvider>(context);
+  final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+  final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+  
+  // Set user info in project provider when role is available
+  if (authProvider.user != null) {
+    final userId = authProvider.user!.id;
+    final userRole = authProvider.user!.role.toLowerCase();
+    
+    // Only set if different from current
+    if (projectProvider.currentUserRole != userRole) {
+      print('=== SETTING USER INFO IN DASHBOARD ===');
+      print('User ID: $userId');
+      print('User Role: $userRole');
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        projectProvider.setUserInfo(userId, userRole);
+        projectProvider.fetchProjects();
+      });
+    }
+  }
     String name = authProvider.user?.name ?? "";
     String role = authProvider.user?.role ?? "";
     String userRole = role.toLowerCase();
