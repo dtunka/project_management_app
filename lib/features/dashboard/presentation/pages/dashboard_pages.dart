@@ -10,10 +10,9 @@ import '../../../projects/presentation/pages/projects_page.dart';
 import '../../../teams/presentation/pages/teams_page.dart';
 import '../../../users/presentation/pages/user_page.dart';
 import '../../../profile/presentation/pages/profile_pages.dart';
-
 import '../../../shared/widgets/sidebar_menu.dart';
 import '../../../../core/networks/token_manager.dart';
-
+import '../../../users/presentation/providers/user_provider.dart';
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -100,29 +99,40 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  
   @override
-  Widget build(BuildContext context) {
-   final authProvider = Provider.of<AuthProvider>(context);
+Widget build(BuildContext context) {
+  final authProvider = Provider.of<AuthProvider>(context);
   final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
   final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
-  
-  // Set user info in project provider when role is available
+  final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+  // Set user info in providers when role is available
   if (authProvider.user != null) {
     final userId = authProvider.user!.id;
     final userRole = authProvider.user!.role.toLowerCase();
     
-    // Only set if different from current
-    if (projectProvider.currentUserRole != userRole) {
-      print('=== SETTING USER INFO IN DASHBOARD ===');
-      print('User ID: $userId');
-      print('User Role: $userRole');
-      
+    // Check if any provider needs to be updated
+    final needsProjectUpdate = projectProvider.currentUserRole != userRole;
+    final needsUserUpdate = userProvider.currentUserRole != userRole;
+    
+    if (needsProjectUpdate || needsUserUpdate) {
+      // Single post frame callback to update both providers
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        projectProvider.setUserInfo(userId, userRole);
-        projectProvider.fetchProjects();
+        if (needsProjectUpdate) {
+          projectProvider.setUserInfo(userId, userRole);
+          projectProvider.fetchProjects();
+        }
+        if (needsUserUpdate) {
+          userProvider.setUserInfo(userId, userRole);
+          userProvider.fetchUsers();
+        }
       });
     }
   }
+  
+ 
+
     String name = authProvider.user?.name ?? "";
     String role = authProvider.user?.role ?? "";
     String userRole = role.toLowerCase();

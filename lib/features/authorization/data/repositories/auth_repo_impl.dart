@@ -16,6 +16,7 @@ class AuthRepositoryImpl implements AuthRepository {
         "auth/login",
         body: {"email": email, "password": password},
       );
+      // ).timeout(Duration(seconds: 10));
 
       final token = response["data"]["accessToken"];
       await TokenManager.saveToken(token);
