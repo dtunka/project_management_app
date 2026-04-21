@@ -11,6 +11,8 @@ class ProjectProvider with ChangeNotifier {
   List<ProjectModel> _projects = [];
   List<ProjectModel> _allProjects = [];
   bool _isLoading = false;
+  bool _isUpdating = false;
+  bool _isDeleting = false;
   String? _errorMessage;
   int? _expandedIndex;
   String _currentUserRole = 'member';
@@ -19,6 +21,8 @@ class ProjectProvider with ChangeNotifier {
   List<ProjectModel> get projects => _projects;
   List<ProjectModel> get allProjects => _allProjects;
   bool get isLoading => _isLoading;
+  bool get isUpdating => _isUpdating;
+  bool get isDeleting => _isDeleting;
   String? get errorMessage => _errorMessage;
   int? get expandedIndex => _expandedIndex;
   String get currentUserRole => _currentUserRole;
@@ -34,6 +38,24 @@ class ProjectProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Check if user can edit project (Only Manager can edit their own projects)
+  bool canEditProject(ProjectModel project) {
+    // Only manager can edit projects where they are the manager
+    if (_currentUserRole == 'manager') {
+      return project.manager.id == _currentUserId;
+    }
+    return false;
+  }
+
+  // Check if user can delete project (Only Manager can delete their own projects)
+  bool canDeleteProject(ProjectModel project) {
+    // Only manager can delete projects where they are the manager
+    if (_currentUserRole == 'manager') {
+      return project.manager.id == _currentUserId;
+    }
+    return false;
+  }
+
   // Fetch projects based on user role
   Future<void> fetchProjects() async {
     _setLoading(true);
@@ -45,12 +67,10 @@ class ProjectProvider with ChangeNotifier {
       print('User ID: $_currentUserId');
       
       if (_currentUserRole == 'manager') {
-        // Use manager-specific endpoint
         print('Fetching projects for manager with ID: $_currentUserId');
         _allProjects = await repository.getProjectsByManager(_currentUserId);
         print('Fetched ${_allProjects.length} projects for manager');
       } else {
-        // Use all projects endpoint for admin/member
         print('Fetching all projects');
         _allProjects = await repository.getAllProjects();
         print('Fetched ${_allProjects.length} total projects');
@@ -83,22 +103,23 @@ class ProjectProvider with ChangeNotifier {
     
     switch (_currentUserRole) {
       case 'admin':
+        // Admin sees all projects (read-only)
         _projects = List.from(_allProjects);
-        print('Admin sees ${_projects.length} projects');
+        print('Admin sees ${_projects.length} projects (read-only)');
         break;
       case 'manager':
         // Manager sees projects where they are the manager
         _projects = _allProjects.where((project) {
           return project.manager.id == _currentUserId;
         }).toList();
-        print('Manager sees ${_projects.length} projects (managed by them)');
+        print('Manager sees ${_projects.length} projects (can edit/delete)');
         break;
       case 'member':
-        // Member sees projects they are contributing to
+        // Member sees projects they are contributing to (read-only)
         _projects = _allProjects.where((project) 
           => project.contributors.any((contributor) => contributor.id == _currentUserId)
         ).toList();
-        print('Member sees ${_projects.length} projects (they contribute to)');
+        print('Member sees ${_projects.length} projects (read-only)');
         break;
       default:
         _projects = [];
@@ -153,7 +174,6 @@ class ProjectProvider with ChangeNotifier {
     final onHoldProjects = _projects.where((p) => p.status == 'on_hold').length;
     final cancelledProjects = _projects.where((p) => p.status == 'cancelled').length;
     
-    // Calculate total tasks
     int totalTasks = 0;
     int completedTasks = 0;
     int inProgressTasks = 0;
@@ -184,20 +204,15 @@ class ProjectProvider with ChangeNotifier {
     };
   }
 
-  // Create new project
+  // Create new project (Only manager)
   Future<ProjectModel?> createProject(Map<String, dynamic> projectData) async {
     _setLoading(true);
     _errorMessage = null;
 
     try {
       final newProject = await repository.createProject(projectData);
-      
-      // Add to all projects list
       _allProjects.add(newProject);
-      
-      // Refresh filtered list
       _filterProjectsByRole();
-      
       _setLoading(false);
       return newProject;
     } catch (e) {
@@ -205,6 +220,59 @@ class ProjectProvider with ChangeNotifier {
       print('Error creating project: $e');
       _setLoading(false);
       return null;
+    }
+  }
+
+  // Update project (Only manager can update their own projects)
+  Future<ProjectModel?> updateProject(String projectId, Map<String, dynamic> updateData) async {
+    _isUpdating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedProject = await repository.updateProject(projectId, updateData);
+      
+      // Update in all projects list
+      final index = _allProjects.indexWhere((p) => p.id == projectId);
+      if (index != -1) {
+        _allProjects[index] = updatedProject;
+      }
+      
+      _filterProjectsByRole();
+      _isUpdating = false;
+      notifyListeners();
+      return updatedProject;
+    } catch (e) {
+      _errorMessage = 'Failed to update project: ${e.toString()}';
+      print('Error updating project: $e');
+      _isUpdating = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  // Delete project (Only manager can delete their own projects)
+  Future<bool> deleteProject(String projectId) async {
+    _isDeleting = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await repository.deleteProject(projectId);
+      
+      // Remove from all projects list
+      _allProjects.removeWhere((p) => p.id == projectId);
+      
+      _filterProjectsByRole();
+      _isDeleting = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to delete project: ${e.toString()}';
+      print('Error deleting project: $e');
+      _isDeleting = false;
+      notifyListeners();
+      return false;
     }
   }
 

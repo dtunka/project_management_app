@@ -340,6 +340,294 @@ class _ProjectsPageState extends State<ProjectsPage> {
       ),
     );
   }
+  // Show edit project dialog
+Future<void> _showEditProjectDialog(ProjectModel project) async {
+  final nameController = TextEditingController(text: project.name);
+  final descriptionController = TextEditingController(text: project.description);
+  final startDateController = TextEditingController(text: _formatDate(project.startDate));
+  final endDateController = TextEditingController(text: _formatDate(project.deadline));
+  
+  String selectedStatus = project.status;
+  DateTime? selectedStartDate = project.startDate;
+  DateTime? selectedEndDate = project.deadline;
+  
+  bool isLoading = false;
+  String? _nameError;
+  String? _descriptionError;
+
+  return showDialog(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.edit, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              const Text('Edit Project'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Container(
+              width: 500,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Project Name Field
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Project Name *',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.folder),
+                      errorText: _nameError,
+                    ),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        _nameError = value.isEmpty ? 'Project name is required' : null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Description Field
+                  TextField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      labelText: 'Description *',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.description),
+                      errorText: _descriptionError,
+                    ),
+                    maxLines: 3,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        _descriptionError = value.isEmpty ? 'Description is required' : null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Status Dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.trending_up),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'planning', child: Text('Planning')),
+                      DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
+                      DropdownMenuItem(value: 'on_hold', child: Text('On Hold')),
+                      DropdownMenuItem(value: 'completed', child: Text('Completed')),
+                      DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedStatus = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Start Date Picker
+                  InkWell(
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: selectedStartDate,
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (pickedDate != null) {
+                        setDialogState(() {
+                          selectedStartDate = pickedDate;
+                          startDateController.text = _formatDate(pickedDate);
+                        });
+                      }
+                    },
+                    child: IgnorePointer(
+                      child: TextField(
+                        controller: startDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'Start Date',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.calendar_today),
+                          hintText: 'Select start date',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // End Date Picker
+                  InkWell(
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: selectedEndDate,
+                        firstDate: selectedStartDate ?? DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 730)),
+                      );
+                      if (pickedDate != null) {
+                        setDialogState(() {
+                          selectedEndDate = pickedDate;
+                          endDateController.text = _formatDate(pickedDate);
+                        });
+                      }
+                    },
+                    child: IgnorePointer(
+                      child: TextField(
+                        controller: endDateController,
+                        decoration: const InputDecoration(
+                          labelText: 'End Date',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.event),
+                          hintText: 'Select end date',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      // Validate fields
+                      if (nameController.text.trim().isEmpty) {
+                        setDialogState(() => _nameError = 'Project name is required');
+                        return;
+                      }
+                      if (descriptionController.text.trim().isEmpty) {
+                        setDialogState(() => _descriptionError = 'Description is required');
+                        return;
+                      }
+
+                      setDialogState(() => isLoading = true);
+
+                      // Prepare update data
+                      Map<String, dynamic> updateData = {
+                        'name': nameController.text.trim(),
+                        'description': descriptionController.text.trim(),
+                        'status': selectedStatus,
+                        'startDate': selectedStartDate?.toIso8601String(),
+                        'deadline': selectedEndDate?.toIso8601String(),
+                      };
+
+                      // Call provider to update project
+                      final projectProvider = Provider.of<ProjectProvider>(dialogContext, listen: false);
+                      final updatedProject = await projectProvider.updateProject(project.id, updateData);
+
+                      if (dialogContext.mounted) {
+                        if (updatedProject != null) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Project updated successfully'),
+                              backgroundColor: Colors.green,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          Navigator.pop(dialogContext);
+                        } else {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(
+                              content: Text(projectProvider.errorMessage ?? 'Failed to update project'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                          setDialogState(() => isLoading = false);
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('SAVE'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+// Confirm delete project
+Future<void> _confirmDeleteProject(ProjectModel project) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Confirm Delete'),
+      content: Text('Are you sure you want to delete project "${project.name}"?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('CANCEL'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('DELETE'),
+        ),
+      ],
+    ),
+  );
+
+  if (shouldDelete == true && mounted) {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (loadingContext) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final success = await projectProvider.deleteProject(project.id);
+
+    if (context.mounted) {
+      Navigator.pop(context); // Close loading dialog
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Project "${project.name}" deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(projectProvider.errorMessage ?? 'Failed to delete project'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -763,6 +1051,50 @@ class _ProjectsPageState extends State<ProjectsPage> {
                                     ),
                                   ],
                                 ),
+                                const SizedBox(height: 16),
+                                // Action Buttons (Only visible to Manager who owns the project)
+if (projectProvider.canEditProject(project) || projectProvider.canDeleteProject(project))
+  Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      if (projectProvider.canEditProject(project))
+        ElevatedButton.icon(
+          onPressed: projectProvider.isUpdating
+              ? null
+              : () => _showEditProjectDialog(project),
+          icon: const Icon(Icons.edit, size: 18),
+          label: const Text('Edit'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      if (projectProvider.canEditProject(project) && projectProvider.canDeleteProject(project))
+        const SizedBox(width: 8),
+      if (projectProvider.canDeleteProject(project))
+        ElevatedButton.icon(
+          onPressed: projectProvider.isDeleting
+              ? null
+              : () => _confirmDeleteProject(project),
+          icon: const Icon(Icons.delete, size: 18),
+          label: const Text('Delete'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+    ],
+  ),
                               ],
                             ),
                           ),
