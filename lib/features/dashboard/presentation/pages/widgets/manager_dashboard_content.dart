@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:project_management_app/features/projects/presentation/providers/project_provider.dart';
+import 'package:project_management_app/features/teams/presentation/providers/team_provider.dart'; 
 import 'package:project_management_app/features/shared/widgets/stat_card.dart';
 import 'package:provider/provider.dart';
 import '../../providers/dashboard_provider.dart';
@@ -51,6 +52,10 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
         return 7;
     }
   }
+    
+ String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,10 +91,15 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          const Text(
-            "Manager Dashboard",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          // Header with Create Project Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Manager Dashboard",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(
@@ -103,7 +113,7 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
             children: [
               Expanded(
                 child: StatCard(
-                  title: "MY PROJECTS",
+                  title: "MY PROJECTS", 
                   value: stats['totalProjects'].toString(),
                   icon: Icons.folder,
                   color: Colors.blue,
@@ -213,7 +223,6 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
                 "Due Soon Projects",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              // Filter Dropdown
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(
@@ -275,9 +284,15 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
           const SizedBox(height: 24),
 
           // All Projects Section
-          const Text(
-            "All My Projects",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "All My Projects",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              
+            ],
           ),
           const SizedBox(height: 12),
           
@@ -626,10 +641,6 @@ class _ManagerDashboardContentState extends State<ManagerDashboardContent> {
         },
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 
   Color _getStatusColor(String status) {

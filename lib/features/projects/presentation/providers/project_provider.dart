@@ -26,7 +26,7 @@ class ProjectProvider with ChangeNotifier {
 
   // Set user info when logging in
   void setUserInfo(String userId, String role) {
-    print('=== SETTING USER INFO ===');
+    print('=== SETTING USER INFO IN PROJECT PROVIDER ===');
     print('User ID: $userId');
     print('User Role: $role');
     _currentUserId = userId;
@@ -50,8 +50,8 @@ class ProjectProvider with ChangeNotifier {
         _allProjects = await repository.getProjectsByManager(_currentUserId);
         print('Fetched ${_allProjects.length} projects for manager');
       } else {
-        // Use all projects endpoint for admin
-        print('Fetching all projects for admin');
+        // Use all projects endpoint for admin/member
+        print('Fetching all projects');
         _allProjects = await repository.getAllProjects();
         print('Fetched ${_allProjects.length} total projects');
       }
@@ -89,12 +89,12 @@ class ProjectProvider with ChangeNotifier {
       case 'manager':
         // Manager sees projects where they are the manager
         _projects = _allProjects.where((project) {
-          print('Comparing: Project Manager ID: ${project.manager.id} vs Current User ID: $_currentUserId');
           return project.manager.id == _currentUserId;
         }).toList();
         print('Manager sees ${_projects.length} projects (managed by them)');
         break;
       case 'member':
+        // Member sees projects they are contributing to
         _projects = _allProjects.where((project) 
           => project.contributors.any((contributor) => contributor.id == _currentUserId)
         ).toList();
@@ -104,6 +104,15 @@ class ProjectProvider with ChangeNotifier {
         _projects = [];
     }
     notifyListeners();
+  }
+
+  // Search projects by name or description
+  List<ProjectModel> searchProjects(String query) {
+    if (query.isEmpty) return _projects;
+    return _projects.where((project) =>
+      project.name.toLowerCase().contains(query.toLowerCase()) ||
+      project.description.toLowerCase().contains(query.toLowerCase())
+    ).toList();
   }
 
   // Get projects due within a specific number of days
@@ -173,6 +182,30 @@ class ProjectProvider with ChangeNotifier {
       'overdueTasks': overdueTasks,
       'completionRate': completionRate,
     };
+  }
+
+  // Create new project
+  Future<ProjectModel?> createProject(Map<String, dynamic> projectData) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    try {
+      final newProject = await repository.createProject(projectData);
+      
+      // Add to all projects list
+      _allProjects.add(newProject);
+      
+      // Refresh filtered list
+      _filterProjectsByRole();
+      
+      _setLoading(false);
+      return newProject;
+    } catch (e) {
+      _errorMessage = 'Failed to create project: ${e.toString()}';
+      print('Error creating project: $e');
+      _setLoading(false);
+      return null;
+    }
   }
 
   void toggleExpand(int index) {
