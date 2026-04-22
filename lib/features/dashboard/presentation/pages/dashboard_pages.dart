@@ -13,6 +13,7 @@ import '../../../profile/presentation/pages/profile_pages.dart';
 import '../../../shared/widgets/sidebar_menu.dart';
 import '../../../../core/networks/token_manager.dart';
 import '../../../users/presentation/providers/user_provider.dart';
+import '../../../tasks/presentation/pages/tasks_page.dart';
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -81,7 +82,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 1:
         return const ProjectsPage();
       case 2:
-        return const Center(child: Text("Tasks Page - Coming Soon"));
+        return const TasksPage();
       case 3:
         return const UsersPage();
       case 4:

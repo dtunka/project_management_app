@@ -17,7 +17,8 @@ import 'package:project_management_app/features/authorization/data/repositories/
 import 'package:project_management_app/features/authorization/presentation/pages/login.dart';
 import 'package:project_management_app/features/authorization/presentation/providers/auth_provider.dart';
 import 'package:project_management_app/features/authorization/presentation/pages/register.dart';
-
+import './features/tasks/data/repositories/task_repository.dart';
+import './features/tasks/presentation/providers/task_provider.dart';
 import './theme/app_theme.dart';
 
 void main() {
@@ -79,7 +80,7 @@ class MyApp extends StatelessWidget {
             return TeamProvider(repository: TeamRepository(apiClient: client));
           },
         ),
-        // Add this import
+        
 
         //7. Profile Provider
         ChangeNotifierProvider(
@@ -90,6 +91,15 @@ class MyApp extends StatelessWidget {
             );
           },
         ),
+        //8. Task Provider
+        ChangeNotifierProvider(
+  create: (context) {
+    final client = Provider.of<ApiClient>(context, listen: false);
+    return TaskProvider(
+      repository: TaskRepository(apiClient: client),
+    );
+  },
+),
       ],
       child: MaterialApp(
         title: 'Project Management App',
