@@ -44,43 +44,49 @@ class SidebarMenu extends StatelessWidget {
         icon: Icons.task,
         title: 'Tasks',
         index: 2,
-        roles: [ 'manager', 'member'], 
+        roles: ['manager', 'member'], // Both manager and member can see tasks
       ),
       SidebarMenuItem(
         icon: Icons.people,
         title: 'Users',
         index: 3,
-        roles: ['admin','manager'], // Only admin and manager
+        roles: ['admin', 'manager'], // Only admin and manager
       ),
       SidebarMenuItem(
         icon: Icons.groups,
         title: 'Teams',
         index: 4,
-        roles: ['admin', 'manager'],
+        roles: ['admin', 'manager', 'member'], // Member can now see teams they belong to
       ),
       SidebarMenuItem(
         icon: Icons.bar_chart,
         title: 'Reports',
         index: 5,
-        roles: ['admin', 'manager'],
+        roles: ['admin', 'manager'], // Only admin and manager
       ),
       SidebarMenuItem(
         icon: Icons.timeline,
         title: 'Activities',
         index: 6,
-        roles: ['admin', 'manager'],
+        roles: ['admin', 'manager'], // Only admin and manager
       ),
       SidebarMenuItem(
         icon: Icons.settings,
         title: 'Settings',
         index: 7,
-        roles: ['admin', 'manager'],
+        roles: ['admin', 'manager'], // Only admin and manager
       ),
       SidebarMenuItem(
         icon: Icons.person,
         title: 'Profile',
         index: 8,
         roles: ['admin', 'manager', 'member'],
+      ),
+      SidebarMenuItem(
+        icon: Icons.show_chart,  // Progress icon
+        title: 'Progress',
+        index: 9,
+        roles: ['member'], // Only member sees progress
       ),
     ];
   }

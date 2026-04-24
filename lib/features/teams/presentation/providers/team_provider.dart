@@ -15,7 +15,7 @@ class TeamProvider with ChangeNotifier {
   bool _isMembersLoading = false;
   String? _errorMessage;
   int? _expandedIndex;
-
+  String _currentUserId = '';
   List<TeamModel> get teams => _teams;
   List<SimpleUser> get availableMembers => _availableMembers;
   bool get isLoading => _isLoading;
@@ -221,4 +221,24 @@ Future<TeamModel?> removeMemberFromTeam(String teamId, String userId) async {
     _errorMessage = null;
     notifyListeners();
   }
+
+  
+Future<void> fetchMyTeams() async {
+  _setLoading(true);
+  _errorMessage = null;
+
+  try {
+    final allTeams = await repository.getAllTeams();
+    // Filter teams where current user is a member
+    _teams = allTeams.where((team) =>
+      team.members.any((member) => member.id == _currentUserId)
+    ).toList();
+    print('Fetched ${_teams.length} teams for member');
+  } catch (e) {
+    _errorMessage = 'Failed to load teams: ${e.toString()}';
+    print('Error fetching member teams: $e');
+  } finally {
+    _setLoading(false);
+  }
+}
 }

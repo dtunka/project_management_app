@@ -14,6 +14,7 @@ import '../../../shared/widgets/sidebar_menu.dart';
 import '../../../../core/networks/token_manager.dart';
 import '../../../users/presentation/providers/user_provider.dart';
 import '../../../tasks/presentation/pages/tasks_page.dart';
+import './widgets/member_progress_page.dart';
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -95,6 +96,8 @@ class _DashboardPageState extends State<DashboardPage> {
         return const Center(child: Text("Settings Page"));
       case 8:
         return const ProfilePage();
+      case 9:
+        return const MemberProgressPage();
       default:
         return _getDashboardContent();
     }

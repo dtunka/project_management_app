@@ -115,12 +115,12 @@ class ProjectProvider with ChangeNotifier {
         print('Manager sees ${_projects.length} projects (can edit/delete)');
         break;
       case 'member':
-        // Member sees projects they are contributing to (read-only)
-        _projects = _allProjects.where((project) 
-          => project.contributors.any((contributor) => contributor.id == _currentUserId)
-        ).toList();
-        print('Member sees ${_projects.length} projects (read-only)');
-        break;
+  // Member sees projects they are contributing to
+  _projects = _allProjects.where((project) 
+    => project.contributors.any((contributor) => contributor.id == _currentUserId)
+  ).toList();
+  print('Member sees ${_projects.length} projects');
+  break;
       default:
         _projects = [];
     }

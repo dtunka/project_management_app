@@ -16,7 +16,7 @@ class TaskProvider with ChangeNotifier {
   String? _errorMessage;
   int? _expandedIndex;
   String _statusFilter = 'all';
-
+  String _currentUserId = '';
   List<TaskModel> get tasks => _tasks;
   bool get isLoading => _isLoading;
   bool get isUpdating => _isUpdating;
@@ -166,7 +166,29 @@ class TaskProvider with ChangeNotifier {
       return null;
     }
   }
+  void setCurrentUser(String userId) {
+  _currentUserId = userId;
+}
+ 
+ // Get tasks assigned to current user (for member view)
+Future<void> fetchMyTasks() async {
+  _setLoading(true);
+  _errorMessage = null;
 
+  try {
+    final allTasks = await repository.getAllTasks();
+    // Filter tasks where current user is an assignee
+    _tasks = allTasks.where((task) => 
+      task.assignees.any((assignee) => assignee.id == _currentUserId)
+    ).toList();
+    print('Fetched ${_tasks.length} tasks for member');
+  } catch (e) {
+    _errorMessage = 'Failed to load tasks: ${e.toString()}';
+    print('Error fetching member tasks: $e');
+  } finally {
+    _setLoading(false);
+  }
+}
   void toggleExpand(int index) {
     if (_expandedIndex == index) {
       _expandedIndex = null;
