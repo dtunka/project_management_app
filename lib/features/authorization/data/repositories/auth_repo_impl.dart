@@ -11,30 +11,31 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User> login(String email, String password) async {
-    try {
-      final response = await apiClient.post(
-        "auth/login",
-        body: {"email": email, "password": password},
-      );
-      // ).timeout(Duration(seconds: 10));
+  try {
+    final response = await apiClient.post(
+      "auth/login",
+      body: {"email": email, "password": password},
+    );
 
-      final token = response["data"]["accessToken"];
-      await TokenManager.saveToken(token);
-
-      final userJson = response["data"]["user"];
-      
-      // Convert UserModel to User entity
-      final userModel = UserModel.fromJson(userJson);
-      return User(
-        id: userModel.id,
-        name: userModel.name,
-        email: userModel.email,
-        role: userModel.role,
-      );
-    } catch (e) {
-      rethrow;
-    }
+    final token = response["data"]["accessToken"];
+    await TokenManager.saveToken(token);
+    
+    final userJson = response["data"]["user"];
+    final user = UserModel.fromJson(userJson);
+    
+    // Save user ID
+    await TokenManager.saveUserId(user.id);
+    
+    return User(
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    );
+  } catch (e) {
+    rethrow;
   }
+}
 
   @override
   Future<User> register(String email, String password, String role) async {

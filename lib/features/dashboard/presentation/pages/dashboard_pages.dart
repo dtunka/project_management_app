@@ -15,6 +15,8 @@ import '../../../../core/networks/token_manager.dart';
 import '../../../users/presentation/providers/user_provider.dart';
 import '../../../tasks/presentation/pages/tasks_page.dart';
 import './widgets/member_progress_page.dart';
+import '../../../tasks/presentation/providers/task_provider.dart';
+import '../../../teams/presentation/providers/team_provider.dart';
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
@@ -25,24 +27,49 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int selectedIndex = 0;
   bool _isSidebarVisible = false;
+  bool _initialized = false; 
 
   @override
   void initState() {
     super.initState();
-    
-    // Debug: Print user role on init
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      print('===== USER ROLE DEBUG =====');
-      print('User: ${authProvider.user?.name}');
-      print('Role: ${authProvider.user?.role}');
-      print('===========================');
-    });
-    
-    Future.microtask(() {
-      Provider.of<DashboardProvider>(context, listen: false).fetchDashboard();
-    });
+    _initializeData();
   }
+  void _initializeData() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final teamProvider = Provider.of<TeamProvider>(context, listen: false);
+    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+    
+    if (authProvider.user != null && !_initialized) {
+      _initialized = true;
+      
+      final userId = authProvider.user!.id;
+      final userRole = authProvider.user!.role.toLowerCase();
+      
+      // Set user info in all providers
+      projectProvider.setUserInfo(userId, userRole);
+      userProvider.setUserInfo(userId, userRole);
+      taskProvider.setCurrentUser(userId);
+      teamProvider.setCurrentUserId(userId);
+      
+      // Fetch data based on role
+      if (userRole == 'member') {
+        taskProvider.fetchMyTasks();
+        teamProvider.fetchMyTeams();
+      } else {
+        taskProvider.fetchTasks();
+        teamProvider.fetchTeams();
+      }
+      
+      projectProvider.fetchProjects();
+      userProvider.fetchUsers();
+      dashboardProvider.fetchDashboard();
+    }
+  });
+}
 
   void _toggleSidebar() {
     setState(() {

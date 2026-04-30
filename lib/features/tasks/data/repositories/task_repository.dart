@@ -66,6 +66,7 @@ class TaskRepository {
           tasks = data.map((json) => TaskModel.fromJson(json)).toList();
         }
       }
+    
 
       return tasks;
     } catch (e) {
@@ -74,34 +75,53 @@ class TaskRepository {
     }
   }
 
-  // Create new task
-  Future<TaskModel> createTask(Map<String, dynamic> taskData) async {
-    try {
-      final token = await TokenManager.getToken();
+ 
+// Create new task
+Future<TaskModel> createTask(Map<String, dynamic> taskData) async {
+  try {
+    final token = await TokenManager.getToken();
 
-      if (token == null) {
-        throw UnauthorizedException('No authentication token found');
-      }
-
-      final response = await apiClient.post(
-        'tasks',
-        body: taskData,
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      print('Create task response: $response');
-
-      if (response.containsKey('data')) {
-        return TaskModel.fromJson(response['data']);
-      }
-      return TaskModel.fromJson(response);
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      print('Error in createTask: $e');
-      throw ApiException('Failed to create task: ${e.toString()}');
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
     }
+    
+    // Get current user ID for createdBy field
+    final currentUserId = await TokenManager.getUserId(); // You may need to store user ID
+    // OR pass it from the provider
+    
+    // CORRECT FORMAT based on API error message
+    final Map<String, dynamic> formattedData = {
+      'title': taskData['title'],
+      'description': taskData['description'],
+      'project': taskData['project'],  // Use 'project' instead of 'projectId'
+      'status': taskData['status'],
+      'priority': taskData['priority'],
+      'deadline': taskData['deadline'],
+      'createdBy': taskData['createdBy'],  // Add createdBy (manager ID)
+    };
+
+    print('Creating task with data: $formattedData');
+    
+    final response = await apiClient.post(
+      'tasks',
+      body: formattedData,
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    print('Response: $response');
+
+    if (response.containsKey('data')) {
+      return TaskModel.fromJson(response['data']);
+    }
+    return TaskModel.fromJson(response);
+  } on ApiException catch (e) {
+    print('API Exception: ${e.message}');
+    rethrow;
+  } catch (e) {
+    print('Error in createTask: $e');
+    throw ApiException('Failed to create task: ${e.toString()}');
   }
+}
 
   // Update task
   Future<TaskModel> updateTask(String taskId, Map<String, dynamic> updateData) async {

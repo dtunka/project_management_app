@@ -50,242 +50,306 @@ class _TasksPageState extends State<TasksPage> {
     ).toList();
   }
 
-  Future<void> _showEditTaskDialog(TaskModel task) async {
-    final titleController = TextEditingController(text: task.title);
-    final descriptionController = TextEditingController(text: task.description);
-    final deadlineController = TextEditingController(text: _formatDate(task.deadline));
-    
-    String selectedStatus = task.status;
-    String selectedPriority = task.priority;
-    DateTime? selectedDeadline = task.deadline;
-    
-    bool isLoading = false;
-    String? _titleError;
-    String? _descriptionError;
-    String? _deadlineError;
+ // Show edit task dialog
+Future<void> _showEditTaskDialog(TaskModel task) async {
+  final titleController = TextEditingController(text: task.title);
+  final descriptionController = TextEditingController(text: task.description);
+  final deadlineController = TextEditingController(text: _formatDate(task.deadline));
+  
+  String selectedStatus = task.status;
+  String selectedPriority = task.priority;
+  DateTime? selectedDeadline = task.deadline;
+  
+  bool isLoading = false;
+  String? _titleError;
+  String? _descriptionError;
 
-    return showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.edit, color: Colors.blue[700]),
-                const SizedBox(width: 8),
-                const Text('Edit Task'),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Container(
-                width: 500,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: titleController,
-                      decoration: InputDecoration(
-                        labelText: 'Task Title *',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.title),
-                        errorText: _titleError,
-                      ),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          _titleError = value.isEmpty ? 'Title is required' : null;
-                        });
-                      },
+  return showDialog(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (innerContext, setDialogState) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.edit, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              const Text('Edit Task'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Container(
+              width: 500,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Task Title Field
+                  TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      labelText: 'Task Title *',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.title),
+                      errorText: _titleError,
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: descriptionController,
-                      decoration: InputDecoration(
-                        labelText: 'Description *',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.description),
-                        errorText: _descriptionError,
-                      ),
-                      maxLines: 3,
-                      onChanged: (value) {
-                        setDialogState(() {
-                          _descriptionError = value.isEmpty ? 'Description is required' : null;
-                        });
-                      },
+                    onChanged: (value) {
+                      setDialogState(() {
+                        _titleError = value.isEmpty ? 'Title is required' : null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Description Field
+                  TextField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      labelText: 'Description *',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.description),
+                      errorText: _descriptionError,
                     ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Status',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.trending_up),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                        DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
-                        DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                        DropdownMenuItem(value: 'overdue', child: Text('Overdue')),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedStatus = value!;
-                        });
-                      },
+                    maxLines: 3,
+                    onChanged: (value) {
+                      setDialogState(() {
+                        _descriptionError = value.isEmpty ? 'Description is required' : null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Status Dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Status',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.trending_up),
                     ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedPriority,
-                      decoration: const InputDecoration(
-                        labelText: 'Priority',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.priority_high),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'critical', child: Text('Critical')),
-                        DropdownMenuItem(value: 'high', child: Text('High')),
-                        DropdownMenuItem(value: 'medium', child: Text('Medium')),
-                        DropdownMenuItem(value: 'low', child: Text('Low')),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedPriority = value!;
-                        });
-                      },
+                    items: const [
+                      DropdownMenuItem(value: 'pending', child: Text('Pending')),
+                      DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
+                      DropdownMenuItem(value: 'completed', child: Text('Completed')),
+                      DropdownMenuItem(value: 'overdue', child: Text('Overdue')),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedStatus = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Priority Dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedPriority,
+                    decoration: const InputDecoration(
+                      labelText: 'Priority',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.priority_high),
                     ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: () async {
-                        final pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDeadline,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
-                        );
-                        if (pickedDate != null) {
-                          setDialogState(() {
-                            selectedDeadline = pickedDate;
-                            deadlineController.text = _formatDate(pickedDate);
-                            _deadlineError = null;
-                          });
-                        }
-                      },
-                      child: IgnorePointer(
-                        child: TextField(
-                          controller: deadlineController,
-                          decoration: InputDecoration(
-                            labelText: 'Deadline',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: const Icon(Icons.event),
-                            errorText: _deadlineError,
-                          ),
+                    items: const [
+                      DropdownMenuItem(value: 'critical', child: Text('Critical')),
+                      DropdownMenuItem(value: 'high', child: Text('High')),
+                      DropdownMenuItem(value: 'medium', child: Text('Medium')),
+                      DropdownMenuItem(value: 'low', child: Text('Low')),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedPriority = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Deadline Date Picker
+                  InkWell(
+                    onTap: () async {
+                      final pickedDate = await showDatePicker(
+                        context: innerContext,
+                        initialDate: selectedDeadline,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (pickedDate != null) {
+                        setDialogState(() {
+                          selectedDeadline = pickedDate;
+                          deadlineController.text = _formatDate(pickedDate);
+                        });
+                      }
+                    },
+                    child: IgnorePointer(
+                      child: TextField(
+                        controller: deadlineController,
+                        decoration: InputDecoration(
+                          labelText: 'Deadline',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.event),
+                          hintText: 'Select deadline',
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('CANCEL'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      // Validate fields
+                      if (titleController.text.trim().isEmpty) {
+                        setDialogState(() => _titleError = 'Title is required');
+                        return;
+                      }
+                      if (descriptionController.text.trim().isEmpty) {
+                        setDialogState(() => _descriptionError = 'Description is required');
+                        return;
+                      }
+
+                      setDialogState(() => isLoading = true);
+
+                      // Prepare update data
+                      Map<String, dynamic> updateData = {
+                        'title': titleController.text.trim(),
+                        'description': descriptionController.text.trim(),
+                        'status': selectedStatus,
+                        'priority': selectedPriority,
+                        'deadline': selectedDeadline!.toIso8601String(),
+                      };
+
+                      // Call provider to update task
+                      final taskProvider = Provider.of<TaskProvider>(dialogContext, listen: false);
+                      final updatedTask = await taskProvider.updateTask(task.id, updateData);
+
+                      if (dialogContext.mounted) {
+                        if (updatedTask != null) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Task updated successfully'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                          Navigator.pop(dialogContext);
+                        } else {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            SnackBar(
+                              content: Text(taskProvider.errorMessage ?? 'Failed to update task'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          setDialogState(() => isLoading = false);
+                        }
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
               ),
-              ElevatedButton(
-                onPressed: isLoading
-                    ? null
-                    : () async {
-                        if (titleController.text.trim().isEmpty) {
-                          setDialogState(() => _titleError = 'Title is required');
-                          return;
-                        }
-                        if (descriptionController.text.trim().isEmpty) {
-                          setDialogState(() => _descriptionError = 'Description is required');
-                          return;
-                        }
+              child: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text('SAVE'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
-                        setDialogState(() => isLoading = true);
-
-                        Map<String, dynamic> updateData = {
-                          'title': titleController.text.trim(),
-                          'description': descriptionController.text.trim(),
-                          'status': selectedStatus,
-                          'priority': selectedPriority,
-                          'deadline': selectedDeadline!.toIso8601String(),
-                        };
-
-                        final taskProvider = Provider.of<TaskProvider>(dialogContext, listen: false);
-                        final updatedTask = await taskProvider.updateTask(task.id, updateData);
-
-                        if (dialogContext.mounted) {
-                          if (updatedTask != null) {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Task updated successfully'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                            Navigator.pop(dialogContext);
-                          } else {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: Text(taskProvider.errorMessage ?? 'Failed to update task'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            setDialogState(() => isLoading = false);
-                          }
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                child: isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('SAVE'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _confirmDeleteTask(TaskModel task) async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirm Delete'),
-        content: Text('Are you sure you want to delete task "${task.title}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('DELETE'),
+// Confirm delete task
+Future<void> _confirmDeleteTask(TaskModel task) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Confirm Delete'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Are you sure you want to delete this task?'),
+          const SizedBox(height: 8),
+          Text(
+            'Task: "${task.title}"',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Project: ${task.projectName}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('CANCEL'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('DELETE'),
+        ),
+      ],
+    ),
+  );
+
+  if (shouldDelete == true && mounted) {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (loadingContext) => const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Deleting task...'),
+          ],
+        ),
+      ),
     );
 
-    if (shouldDelete == true && mounted) {
-      showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    // Call provider to delete task
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final success = await taskProvider.deleteTask(task.id);
 
-      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-      final success = await taskProvider.deleteTask(task.id);
+    if (context.mounted) {
+      // Close loading dialog
+      Navigator.pop(context);
 
-      if (context.mounted) {
-        Navigator.pop(context);
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(success ? 'Task deleted successfully' : taskProvider.errorMessage ?? 'Failed to delete task'),
-            backgroundColor: success ? Colors.green : Colors.red,
+            content: Text('Task "${task.title}" deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(taskProvider.errorMessage ?? 'Failed to delete task'),
+            backgroundColor: Colors.red,
           ),
         );
       }
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -318,7 +382,7 @@ class _TasksPageState extends State<TasksPage> {
 
     return Column(
       children: [
-        // Header with Task Count and New Task Button
+        // Header
         Container(
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.only(bottom: 8),
@@ -348,7 +412,7 @@ class _TasksPageState extends State<TasksPage> {
                 ],
               ),
               ElevatedButton.icon(
-                onPressed: () => showCreateTaskDialog(context),
+                onPressed: () => showCreateTaskDialog(context),  // Call the dialog from the separate file
                 icon: const Icon(Icons.add, size: 20),
                 label: const Text('New Task'),
                 style: ElevatedButton.styleFrom(

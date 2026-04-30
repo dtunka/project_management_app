@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/task_provider.dart';
 import '../../../projects/presentation/providers/project_provider.dart';
 import '../../../teams/presentation/providers/team_provider.dart';
+import '../../../authorization/presentation/providers/auth_provider.dart';
 
 Future<void> showCreateTaskDialog(BuildContext context) async {
   final titleController = TextEditingController();
@@ -30,7 +31,7 @@ Future<void> showCreateTaskDialog(BuildContext context) async {
   return showDialog(
     context: context,
     builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setDialogState) {
+      builder: (innerContext, setDialogState) {
         return AlertDialog(
           title: Row(
             children: [
@@ -102,29 +103,35 @@ Future<void> showCreateTaskDialog(BuildContext context) async {
                         );
                       }).toList(),
                     ],
-                    onChanged: (value) async {
-                      setDialogState(() {
-                        selectedProjectId = value;
-                        _projectError = selectedProjectId == null ? 'Please select a project' : null;
-                        selectedAssigneeIds.clear();
-                        teamMembers.clear();
-                      });
-                      
-                      if (value != null) {
-                        // Fetch team members for the selected project
-                        final teamProvider = Provider.of<TeamProvider>(context, listen: false);
-                        await teamProvider.fetchTeams();
-                        // Find the team for this project
-                        final project = projects.firstWhere((p) => p.id == value);
-                        final team = teamProvider.teams.firstWhere(
-                          (t) => t.id == project.team.id,
-                          orElse: () => teamProvider.teams.first,
-                        );
-                        setDialogState(() {
-                          teamMembers = team.members;
-                        });
-                      }
-                    },
+                  // When selecting a project, print the project object
+onChanged: (value) async {
+  setDialogState(() {
+    selectedProjectId = value;
+    _projectError = selectedProjectId == null ? 'Please select a project' : null;
+    selectedAssigneeIds.clear();
+    teamMembers.clear();
+  });
+  
+  if (value != null) {
+    // Find the selected project
+    final selectedProject = projects.firstWhere((p) => p.id == value);
+    print('Selected project: ${selectedProject.name}');
+    print('Project ID: ${selectedProject.id}');
+    print('Project ID type: ${selectedProject.id.runtimeType}');
+    
+    // Fetch team members for the selected project
+    final teamProvider = Provider.of<TeamProvider>(innerContext, listen: false);
+    await teamProvider.fetchTeams();
+    // Find the team for this project - use project.team.id
+    final team = teamProvider.teams.firstWhere(
+      (t) => t.id == selectedProject.team.id,
+      orElse: () => teamProvider.teams.first,
+    );
+    setDialogState(() {
+      teamMembers = team.members;
+    });
+  }
+},
                   ),
                   const SizedBox(height: 16),
 
@@ -229,7 +236,7 @@ Future<void> showCreateTaskDialog(BuildContext context) async {
                   InkWell(
                     onTap: () async {
                       final pickedDate = await showDatePicker(
-                        context: context,
+                        context: innerContext,
                         initialDate: selectedDeadline ?? DateTime.now().add(const Duration(days: 7)),
                         firstDate: DateTime.now(),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
@@ -288,16 +295,27 @@ Future<void> showCreateTaskDialog(BuildContext context) async {
 
                       setDialogState(() => isLoading = true);
 
-                      // Prepare task data
+                      // Get current user (manager) ID from AuthProvider using dialogContext
+                      final authProvider = Provider.of<AuthProvider>(dialogContext, listen: false);
+                      final currentUserId = authProvider.user?.id ?? '';
+
+                      // Prepare task data with correct format
                       Map<String, dynamic> taskData = {
                         'title': titleController.text.trim(),
                         'description': descriptionController.text.trim(),
-                        'projectId': selectedProjectId,
+                        'project': selectedProjectId,  // Use 'project' not 'projectId'
                         'status': selectedStatus,
                         'priority': selectedPriority,
                         'deadline': selectedDeadline!.toIso8601String(),
-                        'assignees': selectedAssigneeIds,
+                        'createdBy': currentUserId,  // Add creator ID
                       };
+
+                      // Add assignees if selected (as list of IDs)
+                      if (selectedAssigneeIds.isNotEmpty) {
+                        taskData['assignees'] = selectedAssigneeIds;
+                      }
+
+                      print('Task data being sent: $taskData');
 
                       final taskProvider = Provider.of<TaskProvider>(dialogContext, listen: false);
                       final newTask = await taskProvider.createTask(taskData);

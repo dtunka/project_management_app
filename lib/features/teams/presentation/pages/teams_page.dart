@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/team_provider.dart';
 import '../../data/models/team_model.dart';
 import '../../data/models/team_member_model.dart';
-
+import '../../../authorization/presentation/providers/auth_provider.dart';
 class TeamsPage extends StatefulWidget {
   const TeamsPage({super.key});
 
@@ -24,9 +24,16 @@ class _TeamsPageState extends State<TeamsPage> {
   void _fetchData() {
     Future.microtask(() {
       if (mounted) {
-        final provider = Provider.of<TeamProvider>(context, listen: false);
-        provider.fetchTeams();
-        provider.fetchAvailableMembers();
+        
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final teamProvider = Provider.of<TeamProvider>(context, listen: false);
+      final userRole = authProvider.user?.role?.toLowerCase() ?? 'member';
+       if (userRole == 'member') {
+        teamProvider.fetchMyTeams(); // Fetch only member's teams
+      } else {
+        teamProvider.fetchTeams(); // Fetch all teams for admin/manager
+      }
+      teamProvider.fetchAvailableMembers();
       }
     });
   }

@@ -24,8 +24,16 @@ class _ProjectsPageState extends State<ProjectsPage> {
   void _fetchData() {
     Future.microtask(() {
       if (mounted) {
-        final provider = Provider.of<ProjectProvider>(context, listen: false);
-        provider.fetchProjects();
+       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      
+      if (authProvider.user != null) {
+        projectProvider.setUserInfo(
+          authProvider.user!.id,
+          authProvider.user!.role,
+        );
+      }
+      projectProvider.fetchProjects();
       }
     });
   }

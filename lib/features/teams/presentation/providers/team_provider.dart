@@ -221,8 +221,9 @@ Future<TeamModel?> removeMemberFromTeam(String teamId, String userId) async {
     _errorMessage = null;
     notifyListeners();
   }
-
-  
+ void setCurrentUserId(String userId) {
+  _currentUserId = userId;
+}
 Future<void> fetchMyTeams() async {
   _setLoading(true);
   _errorMessage = null;

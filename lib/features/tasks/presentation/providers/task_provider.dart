@@ -6,7 +6,6 @@ import '../../../../core/networks/api_exception.dart';
 
 class TaskProvider with ChangeNotifier {
   final TaskRepository repository;
-
   TaskProvider({required this.repository});
 
   List<TaskModel> _tasks = [];
@@ -24,6 +23,7 @@ class TaskProvider with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   int? get expandedIndex => _expandedIndex;
   String get statusFilter => _statusFilter;
+
 
   // Fetch all tasks
   Future<void> fetchTasks() async {

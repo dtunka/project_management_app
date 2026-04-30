@@ -39,7 +39,7 @@ class ProjectModel {
   factory ProjectModel.fromJson(Map<String, dynamic> json) {
     final tasks = json['tasks'] ?? {};
     return ProjectModel(
-      id: json['_id'] ?? '',
+      id: json['_id'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       team: TeamInfo.fromJson(json['team'] ?? {}),
