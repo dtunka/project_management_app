@@ -16,14 +16,22 @@ class TeamProvider with ChangeNotifier {
   String? _errorMessage;
   int? _expandedIndex;
   String _currentUserId = '';
+  
+  // Getters
   List<TeamModel> get teams => _teams;
   List<SimpleUser> get availableMembers => _availableMembers;
   bool get isLoading => _isLoading;
   bool get isMembersLoading => _isMembersLoading;
   String? get errorMessage => _errorMessage;
   int? get expandedIndex => _expandedIndex;
+  String get currentUserId => _currentUserId;
 
-  // Fetch all teams
+  void setCurrentUserId(String userId) {
+    _currentUserId = userId;
+    print('TeamProvider: User ID set to $userId');
+  }
+
+  // Fetch all teams (for admin/manager)
   Future<void> fetchTeams() async {
     _setLoading(true);
     _errorMessage = null;
@@ -43,6 +51,32 @@ class TeamProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to load teams. Please try again.';
       print('Unexpected error: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Get teams for member (calls repository method)
+  Future<void> fetchMyTeams() async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    try {
+      print('=== FETCHING MEMBER TEAMS ===');
+      print('Current User ID: $_currentUserId');
+      
+      // ✅ CORRECT: Call repository method
+      _teams = await repository.getTeamsByMember(_currentUserId);
+      
+      print('Fetched ${_teams.length} teams for member');
+      
+      for (var team in _teams) {
+        print('  - Team: ${team.name}');
+      }
+      
+    } catch (e) {
+      _errorMessage = 'Failed to load teams: ${e.toString()}';
+      print('Error fetching member teams: $e');
     } finally {
       _setLoading(false);
     }
@@ -121,19 +155,7 @@ class TeamProvider with ChangeNotifier {
       return null;
     }
   }
-  // Add this method to your TeamProvider
-Future<void> refreshTeam(String teamId) async {
-  try {
-    final updatedTeam = await repository.getTeamById(teamId);
-    final index = _teams.indexWhere((t) => t.id == teamId);
-    if (index != -1) {
-      _teams[index] = updatedTeam;
-      notifyListeners();
-    }
-  } catch (e) {
-    print('Error refreshing team: $e');
-  }
-}
+
   // Delete team
   Future<bool> deleteTeam(String teamId) async {
     _setLoading(true);
@@ -151,57 +173,56 @@ Future<void> refreshTeam(String teamId) async {
     }
   }
 
-// Add member to team
-Future<TeamModel?> addMemberToTeam(String teamId, String userId) async {
-  try {
-    final updatedTeam = await repository.addMember(teamId, userId);
-    
-    if (updatedTeam != null) {
-      // Find and update the team in the local list
+  // Add member to team
+  Future<TeamModel?> addMemberToTeam(String teamId, String userId) async {
+    try {
+      final updatedTeam = await repository.addMember(teamId, userId);
+      
       final index = _teams.indexWhere((t) => t.id == teamId);
       if (index != -1) {
         _teams[index] = updatedTeam;
         notifyListeners();
       }
-      print('✅ Successfully added member: $userId to team: $teamId');
+      
+      print('Successfully added member: $userId to team: $teamId');
       return updatedTeam;
-    } 
-  } catch (e) {
-    print('❌ Error in addMemberToTeam: $e');
-    _errorMessage = 'Failed to add member: ${e.toString()}';
-    notifyListeners();
-    return null;
-  }
-}
-
-// Remove member from team
-Future<TeamModel?> removeMemberFromTeam(String teamId, String userId) async {
-  try {
-    final updatedTeam = await repository.removeMember(teamId, userId);
-    
-    // Find and update the team in the local list
-    final index = _teams.indexWhere((t) => t.id == teamId);
-    if (index != -1) {
-      _teams[index] = updatedTeam;
+    } catch (e) {
+      print('Error in addMemberToTeam: $e');
+      _errorMessage = 'Failed to add member: ${e.toString()}';
       notifyListeners();
+      return null;
     }
-    
-    return updatedTeam;
-  } catch (e) {
-    _errorMessage = 'Failed to remove member: ${e.toString()}';
-    notifyListeners();
-    return null;
   }
-}
+
+  // Remove member from team
+  Future<TeamModel?> removeMemberFromTeam(String teamId, String userId) async {
+    try {
+      final updatedTeam = await repository.removeMember(teamId, userId);
+      
+      final index = _teams.indexWhere((t) => t.id == teamId);
+      if (index != -1) {
+        _teams[index] = updatedTeam;
+        notifyListeners();
+      }
+      
+      return updatedTeam;
+    } catch (e) {
+      _errorMessage = 'Failed to remove member: ${e.toString()}';
+      notifyListeners();
+      return null;
+    }
+  }
 
   // Search teams
-  List<TeamModel> searchTeams(String query) {
-    if (query.isEmpty) return _teams;
-    return _teams.where((team) =>
-      team.name.toLowerCase().contains(query.toLowerCase()) ||
-      team.description.toLowerCase().contains(query.toLowerCase())
-    ).toList();
-  }
+ 
+// CORRECT - returns List<TeamModel>
+List<TeamModel> searchTeams(String query) {
+  if (query.isEmpty) return _teams;
+  return _teams.where((team) =>
+    team.name.toLowerCase().contains(query.toLowerCase()) ||
+    team.description.toLowerCase().contains(query.toLowerCase())
+  ).toList();  
+}
 
   void toggleExpand(int index) {
     if (_expandedIndex == index) {
@@ -221,25 +242,4 @@ Future<TeamModel?> removeMemberFromTeam(String teamId, String userId) async {
     _errorMessage = null;
     notifyListeners();
   }
- void setCurrentUserId(String userId) {
-  _currentUserId = userId;
-}
-Future<void> fetchMyTeams() async {
-  _setLoading(true);
-  _errorMessage = null;
-
-  try {
-    final allTeams = await repository.getAllTeams();
-    // Filter teams where current user is a member
-    _teams = allTeams.where((team) =>
-      team.members.any((member) => member.id == _currentUserId)
-    ).toList();
-    print('Fetched ${_teams.length} teams for member');
-  } catch (e) {
-    _errorMessage = 'Failed to load teams: ${e.toString()}';
-    print('Error fetching member teams: $e');
-  } finally {
-    _setLoading(false);
-  }
-}
 }

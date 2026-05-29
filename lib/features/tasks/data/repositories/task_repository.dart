@@ -10,39 +10,51 @@ class TaskRepository {
   TaskRepository({required this.apiClient});
 
   // Get all tasks (for manager - all tasks from their projects)
-  Future<List<TaskModel>> getAllTasks() async {
-    try {
-      final token = await TokenManager.getToken();
-
-      if (token == null) {
-        throw UnauthorizedException('No authentication token found');
-      }
-
-      final response = await apiClient.get(
-        'tasks',
-        headers: {'Authorization': 'Bearer $token'},
-      );
-
-      print('Tasks response: $response');
-
-      List<TaskModel> tasks = [];
-
-      if (response.containsKey('data')) {
-        final data = response['data'];
-        if (data is List) {
-          tasks = data.map((json) => TaskModel.fromJson(json)).toList();
-        }
-      }
-
-      print('Fetched ${tasks.length} tasks');
-      return tasks;
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      print('Error in getAllTasks: $e');
-      throw ApiException('Failed to fetch tasks: ${e.toString()}');
+ Future<List<TaskModel>> getAllTasks() async {
+  try {
+    final token = await TokenManager.getToken();
+    
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
     }
+
+    final response = await apiClient.get(
+      'tasks',
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    List<TaskModel> tasks = [];
+
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is List) {
+        tasks = data.map((json) => TaskModel.fromJson(json)).toList();
+        
+        print('\n=== ALL TASKS FROM API ===');
+        print('Total tasks: ${tasks.length}');
+        for (var task in tasks) {
+          print('\nTask: "${task.title}"');
+          print('  Project: ${task.projectName}');
+          print('  Status: ${task.status}');
+          print('  Assignees:');
+          if (task.assignees.isEmpty) {
+            print('    - No assignees');
+          } else {
+            for (var assignee in task.assignees) {
+              print('    - Name: ${assignee.name}, ID: ${assignee.id}');
+            }
+          }
+        }
+        print('===========================\n');
+      }
+    }
+
+    return tasks;
+  } catch (e) {
+    print('Error in getAllTasks: $e');
+    throw ApiException('Failed to fetch tasks: ${e.toString()}');
   }
+}
 
   // Get tasks by project
   Future<List<TaskModel>> getTasksByProject(String projectId) async {
@@ -66,9 +78,7 @@ class TaskRepository {
           tasks = data.map((json) => TaskModel.fromJson(json)).toList();
         }
       }
-    
-
-      return tasks;
+     return tasks;
     } catch (e) {
       print('Error in getTasksByProject: $e');
       throw ApiException('Failed to fetch project tasks: ${e.toString()}');

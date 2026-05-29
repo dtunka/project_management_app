@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../projects/presentation/providers/project_provider.dart';
 import '../../../../tasks/presentation/providers/task_provider.dart';
+import '../../../../teams/presentation/providers/team_provider.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../../../shared/widgets/stat_card.dart';
+import '../../../../authorization/presentation/providers/auth_provider.dart';
 
 class MemberDashboardContent extends StatefulWidget {
   const MemberDashboardContent({super.key});
@@ -14,6 +16,8 @@ class MemberDashboardContent extends StatefulWidget {
 }
 
 class _MemberDashboardContentState extends State<MemberDashboardContent> {
+  bool _isRefreshing = false;
+
   @override
   void initState() {
     super.initState();
@@ -23,26 +27,85 @@ class _MemberDashboardContentState extends State<MemberDashboardContent> {
   void _fetchData() {
     Future.microtask(() {
       if (mounted) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
         final taskProvider = Provider.of<TaskProvider>(context, listen: false);
         final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+        final teamProvider = Provider.of<TeamProvider>(context, listen: false);
         final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
         
-        taskProvider.fetchTasks();
-        projectProvider.fetchProjects();
+        // Make sure user ID is set
+        if (authProvider.user != null) {
+          print('Setting user ID in providers: ${authProvider.user!.id}');
+          taskProvider.setCurrentUser(authProvider.user!.id);
+          teamProvider.setCurrentUserId(authProvider.user!.id);
+        }
+        
+        taskProvider.fetchMyTasks();  // Fetch only member's tasks
+        projectProvider.fetchProjects();  // Fetches only member's projects
+        teamProvider.fetchMyTeams();  // Fetch only member's teams
         dashboardProvider.fetchDashboard();
       }
     });
   }
 
+  Future<void> _refreshData() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+    final teamProvider = Provider.of<TeamProvider>(context, listen: false);
+    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+    
+    if (authProvider.user != null) {
+      print('Manual refresh - User ID: ${authProvider.user!.id}');
+      taskProvider.setCurrentUser(authProvider.user!.id);
+      teamProvider.setCurrentUserId(authProvider.user!.id);
+      
+      await Future.wait([
+        taskProvider.fetchMyTasks(),
+        projectProvider.fetchProjects(),
+        teamProvider.fetchMyTeams(),
+        dashboardProvider.fetchDashboard(),
+      ]);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isRefreshing = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
     final dashboardProvider = Provider.of<DashboardProvider>(context);
     final taskProvider = Provider.of<TaskProvider>(context);
     final projectProvider = Provider.of<ProjectProvider>(context);
+    final teamProvider = Provider.of<TeamProvider>(context);
     
     final dashboard = dashboardProvider.dashboard;
     final myTasks = taskProvider.tasks;
     final myProjects = projectProvider.projects;
+    final myTeams = teamProvider.teams;
+    
+    // Debug prints
+    print('\n=== MEMBER DASHBOARD DATA ===');
+    print('Auth User ID: ${authProvider.user?.id}');
+    print('TaskProvider User ID: ${taskProvider.currentUserId}');
+    print('TeamProvider User ID: ${teamProvider.currentUserId}');
+    print('Tasks count: ${myTasks.length}');
+    print('Projects count: ${myProjects.length}');
+    print('Teams count: ${myTeams.length}');
+    if (myTasks.isNotEmpty) {
+      for (var task in myTasks) {
+        print('  Task: ${task.title} - Assignees: ${task.assignees.map((a) => a.name).join(", ")}');
+      }
+    }
+    print('=============================\n');
     
     // Calculate task statistics
     final totalTasks = myTasks.length;
@@ -50,10 +113,14 @@ class _MemberDashboardContentState extends State<MemberDashboardContent> {
     final inProgressTasks = myTasks.where((t) => t.status == 'in_progress').length;
     final pendingTasks = myTasks.where((t) => t.status == 'pending').length;
     final overdueTasks = myTasks.where((t) => t.status == 'overdue').length;
+    final dueSoonTasks = myTasks.where((t) {
+      final daysUntilDeadline = t.deadline.difference(DateTime.now()).inDays;
+      return daysUntilDeadline <= 7 && daysUntilDeadline >= 0 && t.status != 'completed';
+    }).length;
     
     final completionRate = totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
 
-    if (dashboardProvider.isLoading && myTasks.isEmpty) {
+    if ((dashboardProvider.isLoading || _isRefreshing) && myTasks.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -66,261 +133,328 @@ class _MemberDashboardContentState extends State<MemberDashboardContent> {
       );
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          const Text(
-            "My Dashboard",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            "Track your personal tasks and projects",
-            style: TextStyle(color: Colors.grey, fontSize: 14),
-          ),
-          const SizedBox(height: 20),
-
-          // Stats Row
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: "MY TASKS",
-                  value: totalTasks.toString(),
-                  icon: Icons.task,
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: StatCard(
-                  title: "COMPLETED",
-                  value: completedTasks.toString(),
-                  icon: Icons.check_circle,
-                  color: Colors.green,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: "IN PROGRESS",
-                  value: inProgressTasks.toString(),
-                  icon: Icons.trending_up,
-                  color: Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: StatCard(
-                  title: "OVERDUE",
-                  value: overdueTasks.toString(),
-                  icon: Icons.warning,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  title: "PENDING",
-                  value: pendingTasks.toString(),
-                  icon: Icons.pending,
-                  color: Colors.purple,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: StatCard(
-                  title: "COMPLETION",
-                  value: "$completionRate%",
-                  icon: Icons.pie_chart,
-                  color: Colors.teal,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Progress Chart Section
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with Refresh Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.pie_chart, color: Colors.teal, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      "My Progress",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                  ],
+                const Text(
+                  "My Dashboard",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 1,
-                      child: _buildProgressChart(completedTasks, inProgressTasks, pendingTasks, overdueTasks),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: _buildProgressLegend(completedTasks, inProgressTasks, pendingTasks, overdueTasks),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                LinearProgressIndicator(
-                  value: completionRate / 100,
-                  backgroundColor: Colors.grey[200],
-                  color: Colors.teal,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Overall Progress',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    Text(
-                      '$completionRate% Complete',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  onPressed: _refreshData,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh',
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 4),
+            const Text(
+              "Track your personal tasks and projects",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 20),
 
-          // My Tasks List
-          const Text(
-            "Recent Tasks",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          
-          if (myTasks.isEmpty)
+            // Stats Row
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    title: "MY TASKS",
+                    value: totalTasks.toString(),
+                    icon: Icons.task,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: StatCard(
+                    title: "COMPLETED",
+                    value: completedTasks.toString(),
+                    icon: Icons.check_circle,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    title: "IN PROGRESS",
+                    value: inProgressTasks.toString(),
+                    icon: Icons.trending_up,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: StatCard(
+                    title: "OVERDUE",
+                    value: overdueTasks.toString(),
+                    icon: Icons.warning,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    title: "DUE SOON",
+                    value: dueSoonTasks.toString(),
+                    icon: Icons.timer,
+                    color: Colors.purple,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: StatCard(
+                    title: "COMPLETION",
+                    value: "$completionRate%",
+                    icon: Icons.pie_chart,
+                    color: Colors.teal,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Progress Chart Section
             Container(
-              padding: const EdgeInsets.all(40),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
               ),
-              child: const Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.task_alt, size: 48, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text('No tasks assigned', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                  ],
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.pie_chart, color: Colors.teal, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "My Progress",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: _buildProgressChart(completedTasks, inProgressTasks, pendingTasks, overdueTasks),
+                      ),
+                      Expanded(
+                        flex: 1,
+                        child: _buildProgressLegend(completedTasks, inProgressTasks, pendingTasks, overdueTasks),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: completionRate / 100,
+                    backgroundColor: Colors.grey[200],
+                    color: Colors.teal,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Overall Progress',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      Text(
+                        '$completionRate% Complete',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: myTasks.length > 5 ? 5 : myTasks.length,
-              itemBuilder: (context, index) {
-                final task = myTasks[index];
-                return _buildTaskCard(task);
-              },
             ),
-          
-          if (myTasks.length > 5)
-            TextButton(
-              onPressed: () {
-                // Navigate to full tasks page
-              },
-              child: const Text('View All Tasks'),
-            ),
-          
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // My Projects Section
-          const Text(
-            "My Projects",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          
-          if (myProjects.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.folder_open, size: 48, color: Colors.grey),
-                    SizedBox(height: 12),
-                    Text('No projects assigned', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                  ],
+            // My Teams Section
+            const Text(
+              "My Teams",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            
+            if (myTeams.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: const Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.groups, size: 48, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('No teams assigned', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: myTeams.length > 3 ? 3 : myTeams.length,
+                itemBuilder: (context, index) {
+                  final team = myTeams[index];
+                  return _buildTeamCard(team);
+                },
               ),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: myProjects.length > 3 ? 3 : myProjects.length,
-              itemBuilder: (context, index) {
-                final project = myProjects[index];
-                return _buildProjectCard(project);
-              },
+            
+            if (myTeams.length > 3)
+              TextButton(
+                onPressed: () {
+                  // Navigate to full teams page
+                },
+                child: const Text('View All Teams'),
+              ),
+            
+            const SizedBox(height: 24),
+
+            // My Tasks List
+            const Text(
+              "Recent Tasks",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          
-          if (myProjects.length > 3)
-            TextButton(
-              onPressed: () {
-                // Navigate to full projects page
-              },
-              child: const Text('View All Projects'),
+            const SizedBox(height: 12),
+            
+            if (myTasks.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.task_alt, size: 48, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('No tasks assigned', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: myTasks.length > 5 ? 5 : myTasks.length,
+                itemBuilder: (context, index) {
+                  final task = myTasks[index];
+                  return _buildTaskCard(task);
+                },
+              ),
+            
+            if (myTasks.length > 5)
+              TextButton(
+                onPressed: () {
+                  // Navigate to full tasks page
+                },
+                child: const Text('View All Tasks'),
+              ),
+            
+            const SizedBox(height: 24),
+
+            // My Projects Section
+            const Text(
+              "My Projects",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 12),
+            
+            if (myProjects.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(40),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.folder_open, size: 48, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('No projects assigned', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: myProjects.length > 3 ? 3 : myProjects.length,
+                itemBuilder: (context, index) {
+                  final project = myProjects[index];
+                  return _buildProjectCard(project);
+                },
+              ),
+            
+            if (myProjects.length > 3)
+              TextButton(
+                onPressed: () {
+                  // Navigate to full projects page
+                },
+                child: const Text('View All Projects'),
+              ),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildProgressChart(int completed, int inProgress, int pending, int overdue) {
     final total = completed + inProgress + pending + overdue;
+    
     if (total == 0) {
       return const Center(
-        child: Text('No data available', style: TextStyle(fontSize: 12, color: Colors.grey)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pie_chart, size: 40, color: Colors.grey),
+            SizedBox(height: 8),
+            Text('No tasks yet', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
       );
     }
 
@@ -331,31 +465,35 @@ class _MemberDashboardContentState extends State<MemberDashboardContent> {
           sections: [
             PieChartSectionData(
               value: completed.toDouble(),
-              title: '${(completed / total * 100).round()}%',
+              title: completed > 0 ? '${((completed / total) * 100).round()}%' : '',
               color: Colors.green,
               radius: 60,
               titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              showTitle: completed > 0,
             ),
             PieChartSectionData(
               value: inProgress.toDouble(),
-              title: '${(inProgress / total * 100).round()}%',
+              title: inProgress > 0 ? '${((inProgress / total) * 100).round()}%' : '',
               color: Colors.blue,
               radius: 60,
               titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              showTitle: inProgress > 0,
             ),
             PieChartSectionData(
               value: pending.toDouble(),
-              title: '${(pending / total * 100).round()}%',
+              title: pending > 0 ? '${((pending / total) * 100).round()}%' : '',
               color: Colors.orange,
               radius: 60,
               titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              showTitle: pending > 0,
             ),
             PieChartSectionData(
               value: overdue.toDouble(),
-              title: '${(overdue / total * 100).round()}%',
+              title: overdue > 0 ? '${((overdue / total) * 100).round()}%' : '',
               color: Colors.red,
               radius: 60,
               titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+              showTitle: overdue > 0,
             ),
           ],
           sectionsSpace: 2,
@@ -469,17 +607,6 @@ class _MemberDashboardContentState extends State<MemberDashboardContent> {
     );
   }
 
-  Widget _buildTaskInfo(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: Colors.grey[500]),
-        const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-      ],
-    );
-  }
-
   Widget _buildProjectCard(project) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -545,6 +672,71 @@ class _MemberDashboardContentState extends State<MemberDashboardContent> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTeamCard(team) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.orange,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  team.name,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  team.description,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${team.memberCount} members',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.orange[700]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaskInfo(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[500]),
+        const SizedBox(width: 4),
+        Text(text, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
     );
   }
 

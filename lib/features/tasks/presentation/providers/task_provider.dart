@@ -17,6 +17,8 @@ class TaskProvider with ChangeNotifier {
   String _statusFilter = 'all';
   String _currentUserId = '';
   List<TaskModel> get tasks => _tasks;
+ 
+String get currentUserId => _currentUserId;
   bool get isLoading => _isLoading;
   bool get isUpdating => _isUpdating;
   bool get isDeleting => _isDeleting;
@@ -170,18 +172,42 @@ class TaskProvider with ChangeNotifier {
   _currentUserId = userId;
 }
  
- // Get tasks assigned to current user (for member view)
+// Get tasks assigned to current user (for member view)
+// Get tasks assigned to current user (for member view)
 Future<void> fetchMyTasks() async {
   _setLoading(true);
   _errorMessage = null;
 
   try {
+    print('\n=== FETCHING MEMBER TASKS ===');
+    print('Current User ID: $_currentUserId');
+    
     final allTasks = await repository.getAllTasks();
+    print('Total tasks from API: ${allTasks.length}');
+    
+    // Debug: Print all tasks and their assignees
+    for (var task in allTasks) {
+      print('\nTask: "${task.title}"');
+      print('  Assignees count: ${task.assignees.length}');
+      for (var assignee in task.assignees) {
+        print('  - Assignee ID: ${assignee.id}, Name: ${assignee.name}');
+        print('  - Current User ID: $_currentUserId');
+        print('  - Match: ${assignee.id == _currentUserId}');
+      }
+    }
+    
     // Filter tasks where current user is an assignee
-    _tasks = allTasks.where((task) => 
-      task.assignees.any((assignee) => assignee.id == _currentUserId)
-    ).toList();
-    print('Fetched ${_tasks.length} tasks for member');
+    _tasks = allTasks.where((task) {
+      return task.assignees.any((assignee) => assignee.id == _currentUserId);
+    }).toList();
+    
+    print('\n✅ Fetched ${_tasks.length} tasks for member');
+    
+    for (var task in _tasks) {
+      print('  - Assigned task: ${task.title}');
+    }
+    print('===============================\n');
+    
   } catch (e) {
     _errorMessage = 'Failed to load tasks: ${e.toString()}';
     print('Error fetching member tasks: $e');

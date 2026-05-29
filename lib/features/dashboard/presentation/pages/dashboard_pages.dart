@@ -34,14 +34,9 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _initializeData();
   }
-  void _initializeData() {
+ void _initializeData() {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-    final teamProvider = Provider.of<TeamProvider>(context, listen: false);
-    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
     
     if (authProvider.user != null && !_initialized) {
       _initialized = true;
@@ -49,7 +44,18 @@ class _DashboardPageState extends State<DashboardPage> {
       final userId = authProvider.user!.id;
       final userRole = authProvider.user!.role.toLowerCase();
       
+      print('\n=== INITIALIZING DASHBOARD ===');
+      print('User ID: $userId');
+      print('User Role: $userRole');
+      print('==============================\n');
+      
       // Set user info in all providers
+      final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+      final teamProvider = Provider.of<TeamProvider>(context, listen: false);
+      final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+      
       projectProvider.setUserInfo(userId, userRole);
       userProvider.setUserInfo(userId, userRole);
       taskProvider.setCurrentUser(userId);
@@ -57,14 +63,17 @@ class _DashboardPageState extends State<DashboardPage> {
       
       // Fetch data based on role
       if (userRole == 'member') {
+        print('Fetching member-specific data...');
         taskProvider.fetchMyTasks();
         teamProvider.fetchMyTeams();
+        projectProvider.fetchProjects();
       } else {
+        print('Fetching manager/admin data...');
         taskProvider.fetchTasks();
         teamProvider.fetchTeams();
+        projectProvider.fetchProjects();
       }
       
-      projectProvider.fetchProjects();
       userProvider.fetchUsers();
       dashboardProvider.fetchDashboard();
     }
@@ -134,33 +143,6 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
 Widget build(BuildContext context) {
   final authProvider = Provider.of<AuthProvider>(context);
-  final projectProvider = Provider.of<ProjectProvider>(context, listen: false);
-  final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
-  final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-  // Set user info in providers when role is available
-  if (authProvider.user != null) {
-    final userId = authProvider.user!.id;
-    final userRole = authProvider.user!.role.toLowerCase();
-    
-    // Check if any provider needs to be updated
-    final needsProjectUpdate = projectProvider.currentUserRole != userRole;
-    final needsUserUpdate = userProvider.currentUserRole != userRole;
-    
-    if (needsProjectUpdate || needsUserUpdate) {
-      // Single post frame callback to update both providers
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (needsProjectUpdate) {
-          projectProvider.setUserInfo(userId, userRole);
-          projectProvider.fetchProjects();
-        }
-        if (needsUserUpdate) {
-          userProvider.setUserInfo(userId, userRole);
-          userProvider.fetchUsers();
-        }
-      });
-    }
-  }
   
  
 

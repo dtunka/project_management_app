@@ -3,8 +3,24 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../tasks/presentation/providers/task_provider.dart';
 
-class MemberProgressPage extends StatelessWidget {
+class MemberProgressPage extends StatefulWidget {
   const MemberProgressPage({super.key});
+
+  @override
+  State<MemberProgressPage> createState() => _MemberProgressPageState();
+}
+
+class _MemberProgressPageState extends State<MemberProgressPage> {
+  @override
+  void initState() {
+    super.initState();
+    _refreshData();
+  }
+
+  Future<void> _refreshData() async {
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    await taskProvider.fetchMyTasks();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,162 +40,199 @@ class MemberProgressPage extends StatelessWidget {
     
     final completionRate = totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'My Progress',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Track your task performance and completion',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
+    if (taskProvider.isLoading && myTasks.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading progress...'),
+          ],
+        ),
+      );
+    }
 
-          // Chart Section
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'My Progress',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 250,
-                  child: PieChart(
-                    PieChartData(
-                      sections: [
-                        PieChartSectionData(
-                          value: completedTasks.toDouble(),
-                          title: '${(completedTasks / totalTasks * 100).round()}%',
-                          color: Colors.green,
-                          radius: 80,
-                          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        PieChartSectionData(
-                          value: inProgressTasks.toDouble(),
-                          title: '${(inProgressTasks / totalTasks * 100).round()}%',
-                          color: Colors.blue,
-                          radius: 80,
-                          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        PieChartSectionData(
-                          value: pendingTasks.toDouble(),
-                          title: '${(pendingTasks / totalTasks * 100).round()}%',
-                          color: Colors.orange,
-                          radius: 80,
-                          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        PieChartSectionData(
-                          value: overdueTasks.toDouble(),
-                          title: '${(overdueTasks / totalTasks * 100).round()}%',
-                          color: Colors.red,
-                          radius: 80,
-                          titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                      ],
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 50,
-                    ),
+            const SizedBox(height: 8),
+            const Text(
+              'Track your task performance and completion',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+
+            // Chart Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+              ),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 250,
+                    child: _buildProgressChart(completedTasks, inProgressTasks, pendingTasks, overdueTasks, totalTasks),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 16,
-                  runSpacing: 12,
-                  children: [
-                    _buildLegendItem(Colors.green, 'Completed', completedTasks),
-                    _buildLegendItem(Colors.blue, 'In Progress', inProgressTasks),
-                    _buildLegendItem(Colors.orange, 'Pending', pendingTasks),
-                    _buildLegendItem(Colors.red, 'Overdue', overdueTasks),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    children: [
+                      _buildLegendItem(Colors.green, 'Completed', completedTasks),
+                      _buildLegendItem(Colors.blue, 'In Progress', inProgressTasks),
+                      _buildLegendItem(Colors.orange, 'Pending', pendingTasks),
+                      _buildLegendItem(Colors.red, 'Overdue', overdueTasks),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Stats Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard('Total Tasks', totalTasks.toString(), Icons.task, Colors.purple),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard('Due Soon', dueSoonTasks.toString(), Icons.timer, Colors.orange),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatCard('Completion Rate', '$completionRate%', Icons.pie_chart, Colors.teal),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard('Overdue', overdueTasks.toString(), Icons.warning, Colors.red),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Progress Bar
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Stats Cards
+            Row(
               children: [
-                const Text(
-                  'Overall Progress',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Expanded(
+                  child: _buildStatCard('Total Tasks', totalTasks.toString(), Icons.task, Colors.purple),
                 ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: completionRate / 100,
-                  backgroundColor: Colors.grey[200],
-                  color: Colors.teal,
-                  minHeight: 10,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '0%',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    Text(
-                      '$completionRate% Complete',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
-                    ),
-                    Text(
-                      '100%',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatCard('Due Soon', dueSoonTasks.toString(), Icons.timer, Colors.orange),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard('Completion Rate', '$completionRate%', Icons.pie_chart, Colors.teal),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildStatCard('Overdue', overdueTasks.toString(), Icons.warning, Colors.red),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Progress Bar
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Overall Progress',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                    value: completionRate / 100,
+                    backgroundColor: Colors.grey[200],
+                    color: Colors.teal,
+                    minHeight: 10,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '0%',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      Text(
+                        '$completionRate% Complete',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                      Text(
+                        '100%',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressChart(int completed, int inProgress, int pending, int overdue, int total) {
+    if (total == 0) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.pie_chart, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('No tasks yet', style: TextStyle(fontSize: 14, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    return PieChart(
+      PieChartData(
+        sections: [
+          PieChartSectionData(
+            value: completed.toDouble(),
+            title: completed > 0 ? '${(completed / total * 100).round()}%' : '',
+            color: Colors.green,
+            radius: 80,
+            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+            showTitle: completed > 0,
+          ),
+          PieChartSectionData(
+            value: inProgress.toDouble(),
+            title: inProgress > 0 ? '${(inProgress / total * 100).round()}%' : '',
+            color: Colors.blue,
+            radius: 80,
+            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+            showTitle: inProgress > 0,
+          ),
+          PieChartSectionData(
+            value: pending.toDouble(),
+            title: pending > 0 ? '${(pending / total * 100).round()}%' : '',
+            color: Colors.orange,
+            radius: 80,
+            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+            showTitle: pending > 0,
+          ),
+          PieChartSectionData(
+            value: overdue.toDouble(),
+            title: overdue > 0 ? '${(overdue / total * 100).round()}%' : '',
+            color: Colors.red,
+            radius: 80,
+            titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+            showTitle: overdue > 0,
           ),
         ],
+        sectionsSpace: 2,
+        centerSpaceRadius: 50,
       ),
     );
   }

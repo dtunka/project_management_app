@@ -50,6 +50,38 @@ Future<List<ProjectModel>> getProjectsByManager(String managerId) async {
     throw ApiException('Failed to fetch manager projects: ${e.toString()}');
   }
 }
+// method to get projects by contributor (for members)
+Future<List<ProjectModel>> getProjectsByContributor(String userId) async {
+  try {
+    final token = await TokenManager.getToken();
+    
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
+    }
+    
+    print('Fetching projects for contributor: $userId');
+    
+    final response = await apiClient.get(
+      'projects/contributor/$userId',  // Try this endpoint
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    List<ProjectModel> projects = [];
+    
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is List) {
+        projects = data.map((json) => ProjectModel.fromJson(json)).toList();
+        print('Found ${projects.length} projects for contributor');
+      }
+    }
+    
+    return projects;
+  } catch (e) {
+    print('Error in getProjectsByContributor: $e');
+    throw ApiException('Failed to fetch contributor projects: ${e.toString()}');
+  }
+}
 
   Future<List<ProjectModel>> getAllProjects() async {
     try {

@@ -33,35 +33,35 @@ class TaskModel {
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
-    // Safe getter for string values
-    String _getString(dynamic value) {
+    // Helper function to safely get string value
+    String getString(dynamic value) {
       if (value == null) return '';
       if (value is String) return value;
       if (value is num) return value.toString();
       return '';
     }
-
-    // Safe getter for project ID (handles both Map and String)
-    String _getProjectId(dynamic projectData) {
+    
+    // Helper function to safely get project ID
+    String getProjectId(dynamic projectData) {
       if (projectData == null) return '';
       if (projectData is String) return projectData;
       if (projectData is Map) {
-        return _getString(projectData['_id'] ?? projectData['id']);
+        return getString(projectData['_id'] ?? projectData['id']);
       }
       return '';
     }
-
-    // Safe getter for project name
-    String _getProjectName(dynamic projectData) {
+    
+    // Helper function to safely get project name
+    String getProjectName(dynamic projectData) {
       if (projectData == null) return '';
       if (projectData is Map) {
-        return _getString(projectData['name']);
+        return getString(projectData['name']);
       }
-      return _getString(projectData);
+      return '';
     }
-
-    // Safe date parser
-    DateTime _parseDate(dynamic dateValue) {
+    
+    // Helper function to safely parse date
+    DateTime parseDate(dynamic dateValue) {
       if (dateValue == null) return DateTime.now();
       if (dateValue is DateTime) return dateValue;
       try {
@@ -70,10 +70,19 @@ class TaskModel {
         return DateTime.now();
       }
     }
-
-    // Safe assignees parser
-    List<Assignee> _getAssignees(dynamic assigneesData) {
+    
+    // Helper function to get assignees - handles both 'assignees' and 'assignedTo'
+    List<Assignee> getAssignees(Map<String, dynamic> json) {
       List<Assignee> result = [];
+      
+      // Try 'assignees' field first
+      var assigneesData = json['assignees'];
+      
+      // If not found, try 'assignedTo' field
+      if (assigneesData == null) {
+        assigneesData = json['assignedTo'];
+      }
+      
       if (assigneesData == null) return result;
       
       if (assigneesData is List) {
@@ -87,88 +96,32 @@ class TaskModel {
       } else if (assigneesData is Map<String, dynamic>) {
         result.add(Assignee.fromJson(assigneesData));
       }
+      
       return result;
     }
 
-    // Get project info - try multiple possible field names
-    String projectId = '';
-    String projectName = '';
-    
-    // Try to get from 'project' field
-    if (json['project'] != null) {
-      projectId = _getProjectId(json['project']);
-      projectName = _getProjectName(json['project']);
-    }
-    
-    // If not found, try direct fields
-    if (projectId.isEmpty && json['projectId'] != null) {
-      projectId = _getString(json['projectId']);
-    }
-    if (projectName.isEmpty && json['projectName'] != null) {
-      projectName = _getString(json['projectName']);
-    }
-
     return TaskModel(
-      id: _getString(json['_id'] ?? json['id']),
-      title: _getString(json['title']),
-      description: _getString(json['description']),
-      status: _getString(json['status']),
-      priority: _getString(json['priority']),
-      projectId: projectId,
-      projectName: projectName,
-      assignees: _getAssignees(json['assignees']),
-      deadline: _parseDate(json['deadline']),
-      createdAt: _parseDate(json['createdAt']),
-      updatedAt: _parseDate(json['updatedAt']),
+      id: getString(json['_id'] ?? json['id']),
+      title: getString(json['title']),
+      description: getString(json['description']),
+      status: getString(json['status']),
+      priority: getString(json['priority']),
+      projectId: getProjectId(json['project'] ?? json['projectId']),
+      projectName: getProjectName(json['project'] ?? json['projectName']),
+      assignees: getAssignees(json),
+      deadline: parseDate(json['deadline']),
+      createdAt: parseDate(json['createdAt']),
+      updatedAt: parseDate(json['updatedAt']),
       comments: (json['comments'] as List? ?? [])
           .whereType<Map<String, dynamic>>()
           .map((c) => Comment.fromJson(c))
           .toList(),
-      progress: json['progress'] is num ? (json['progress'] as num).toInt() : 0,
+      progress: json['percentageComplete'] ?? json['progress'] ?? 0,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      '_id': id,
-      'title': title,
-      'description': description,
-      'status': status,
-      'priority': priority,
-      'projectId': projectId,
-      'assignees': assignees.map((a) => a.toJson()).toList(),
-      'deadline': deadline.toIso8601String(),
-      'comments': comments.map((c) => c.toJson()).toList(),
-      'progress': progress,
-    };
-  }
-
-  Map<String, dynamic> toCreateJson() {
-    return {
-      'title': title,
-      'description': description,
-      'status': status,
-      'priority': priority,
-      'projectId': projectId,
-      'assignees': assignees.map((a) => a.id).toList(),
-      'deadline': deadline.toIso8601String(),
-    };
-  }
-
-  Map<String, dynamic> toUpdateJson() {
-    final Map<String, dynamic> data = {
-      'title': title,
-      'description': description,
-      'status': status,
-      'priority': priority,
-      'deadline': deadline.toIso8601String(),
-    };
-    if (assignees.isNotEmpty) {
-      data['assignees'] = assignees.map((a) => a.id).toList();
-    }
-    return data;
-  }
-
+  // ... rest of your TaskModel methods (toJson, toCreateJson, etc.)
+  
   String get statusText {
     switch (status.toLowerCase()) {
       case 'pending':

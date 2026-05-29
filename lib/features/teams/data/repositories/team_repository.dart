@@ -366,4 +366,36 @@ Future<List<SimpleUser>> getAllMembers() async {
     throw ApiException('Failed to fetch members: ${e.toString()}');
   }
 }
+// Add this method to get teams by member
+Future<List<TeamModel>> getTeamsByMember(String userId) async {
+  try {
+    final token = await TokenManager.getToken();
+    
+    if (token == null) {
+      throw UnauthorizedException('No authentication token found');
+    }
+    
+    print('Fetching teams for member: $userId');
+    
+    final response = await apiClient.get(
+      'teams/member/$userId',
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    
+    List<TeamModel> teams = [];
+    
+    if (response.containsKey('data')) {
+      final data = response['data'];
+      if (data is List) {
+        teams = data.map((json) => TeamModel.fromJson(json)).toList();
+        print('Found ${teams.length} teams for member');
+      }
+    }
+    
+    return teams;
+  } catch (e) {
+    print('Error in getTeamsByMember: $e');
+    throw ApiException('Failed to fetch member teams: ${e.toString()}');
+  }
+}
 }

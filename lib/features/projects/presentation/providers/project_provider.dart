@@ -57,42 +57,50 @@ class ProjectProvider with ChangeNotifier {
   }
 
   // Fetch projects based on user role
-  Future<void> fetchProjects() async {
-    _setLoading(true);
-    _errorMessage = null;
+ // Fetch projects based on user role
+Future<void> fetchProjects() async {
+  _setLoading(true);
+  _errorMessage = null;
 
-    try {
-      print('=== FETCHING PROJECTS ===');
-      print('User Role: $_currentUserRole');
-      print('User ID: $_currentUserId');
-      
-      if (_currentUserRole == 'manager') {
-        print('Fetching projects for manager with ID: $_currentUserId');
-        _allProjects = await repository.getProjectsByManager(_currentUserId);
-        print('Fetched ${_allProjects.length} projects for manager');
-      } else {
-        print('Fetching all projects');
-        _allProjects = await repository.getAllProjects();
-        print('Fetched ${_allProjects.length} total projects');
-      }
-      
-      _filterProjectsByRole();
-    } on UnauthorizedException catch (e) {
-      _errorMessage = 'Session expired. Please login again.';
-      print('Unauthorized: $e');
-    } on ServerException catch (e) {
-      _errorMessage = 'Server error. Please try again later.';
-      print('Server error: $e');
-    } on ApiException catch (e) {
-      _errorMessage = e.message;
-      print('API error: $e');
-    } catch (e) {
-      _errorMessage = 'Failed to load projects. Please try again.';
-      print('Unexpected error: $e');
-    } finally {
-      _setLoading(false);
+  try {
+    print('=== FETCHING PROJECTS ===');
+    print('User Role: $_currentUserRole');
+    print('User ID: $_currentUserId');
+    
+    if (_currentUserRole == 'member') {
+      // For member, fetch projects where they are a contributor
+      print('Fetching projects for member as contributor...');
+      _allProjects = await repository.getProjectsByContributor(_currentUserId);
+      print('Fetched ${_allProjects.length} projects for member');
+    } else if (_currentUserRole == 'manager') {
+      // Use manager-specific endpoint
+      print('Fetching projects for manager with ID: $_currentUserId');
+      _allProjects = await repository.getProjectsByManager(_currentUserId);
+      print('Fetched ${_allProjects.length} projects for manager');
+    } else {
+      // Use all projects endpoint for admin
+      print('Fetching all projects for admin');
+      _allProjects = await repository.getAllProjects();
+      print('Fetched ${_allProjects.length} total projects');
     }
+    
+    _filterProjectsByRole();
+  } on UnauthorizedException catch (e) {
+    _errorMessage = 'Session expired. Please login again.';
+    print('Unauthorized: $e');
+  } on ServerException catch (e) {
+    _errorMessage = 'Server error. Please try again later.';
+    print('Server error: $e');
+  } on ApiException catch (e) {
+    _errorMessage = e.message;
+    print('API error: $e');
+  } catch (e) {
+    _errorMessage = 'Failed to load projects. Please try again.';
+    print('Unexpected error: $e');
+  } finally {
+    _setLoading(false);
   }
+}
 
   // Filter projects based on user role
   void _filterProjectsByRole() {

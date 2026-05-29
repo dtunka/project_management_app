@@ -129,6 +129,10 @@ onChanged: (value) async {
     );
     setDialogState(() {
       teamMembers = team.members;
+      print('Team members loaded: ${teamMembers.length}');
+       for (var member in teamMembers) {
+    print('  Member: ${member.name}, ID: ${member.id}');
+  }
     });
   }
 },
@@ -312,7 +316,10 @@ onChanged: (value) async {
 
                       // Add assignees if selected (as list of IDs)
                       if (selectedAssigneeIds.isNotEmpty) {
-                        taskData['assignees'] = selectedAssigneeIds;
+                        taskData['assignedTo'] = selectedAssigneeIds;
+                      }else {
+  
+                      print('WARNING: No assignees selected for this task!');
                       }
 
                       print('Task data being sent: $taskData');
