@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../../../../core/networks/api_client.dart';
@@ -102,7 +103,7 @@ class ProfileRepository {
     }
   }
 
-  // Upload profile picture - Web compatible
+  // Upload profile picture - Web compatible (Uint8List version)
   Future<String> uploadProfilePicture(Uint8List imageBytes, String fileName) async {
     try {
       final token = await TokenManager.getToken();
@@ -111,7 +112,6 @@ class ProfileRepository {
         throw UnauthorizedException('No authentication token found');
       }
 
-      // Create multipart request for file upload
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${apiClient.baseUrl}/upload/profile'),
@@ -121,7 +121,6 @@ class ProfileRepository {
         'Authorization': 'Bearer $token',
       });
 
-      // Create multipart file from bytes
       final multipartFile = http.MultipartFile.fromBytes(
         'file',
         imageBytes,
@@ -139,7 +138,6 @@ class ProfileRepository {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final Map<String, dynamic> responseData = json.decode(response.body);
         
-        // Extract the file URL from response
         if (responseData.containsKey('data')) {
           final data = responseData['data'];
           if (data is Map<String, dynamic>) {
@@ -153,7 +151,7 @@ class ProfileRepository {
           return responseData['fileUrl'];
         }
         
-        return responseData['message'] ?? '';
+        return '';
       } else {
         throw ApiException('Failed to upload image: ${response.statusCode}');
       }
@@ -162,6 +160,66 @@ class ProfileRepository {
       rethrow;
     } catch (e) {
       print('Error in uploadProfilePicture: $e');
+      throw ApiException('Failed to upload profile picture: ${e.toString()}');
+    }
+  }
+
+  // Upload profile picture from File (for mobile)
+  Future<String> uploadProfilePictureFile(File imageFile) async {
+    try {
+      final token = await TokenManager.getToken();
+
+      if (token == null) {
+        throw UnauthorizedException('No authentication token found');
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${apiClient.baseUrl}/upload/profile'),
+      );
+
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+      });
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          imageFile.path,
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('Upload response status: ${response.statusCode}');
+      print('Upload response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        
+        if (responseData.containsKey('data')) {
+          final data = responseData['data'];
+          if (data is Map<String, dynamic>) {
+            return data['url'] ?? data['fileUrl'] ?? data['path'] ?? '';
+          } else if (data is String) {
+            return data;
+          }
+        } else if (responseData.containsKey('url')) {
+          return responseData['url'];
+        } else if (responseData.containsKey('fileUrl')) {
+          return responseData['fileUrl'];
+        }
+        
+        return '';
+      } else {
+        throw ApiException('Failed to upload image: ${response.statusCode}');
+      }
+      
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      print('Error in uploadProfilePictureFile: $e');
       throw ApiException('Failed to upload profile picture: ${e.toString()}');
     }
   }

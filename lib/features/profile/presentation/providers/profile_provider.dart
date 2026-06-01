@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../data/models/profile_model.dart';
@@ -46,7 +47,7 @@ class ProfileProvider with ChangeNotifier {
     }
   }
 
-  // Upload profile picture
+  // Upload profile picture from bytes (for web)
   Future<String?> uploadProfilePicture(Uint8List imageBytes, String fileName) async {
     _isUploading = true;
     _errorMessage = null;
@@ -54,6 +55,27 @@ class ProfileProvider with ChangeNotifier {
 
     try {
       final imageUrl = await repository.uploadProfilePicture(imageBytes, fileName);
+      _isUploading = false;
+      notifyListeners();
+      return imageUrl;
+      
+    } catch (e) {
+      _errorMessage = 'Failed to upload profile picture: ${e.toString()}';
+      print('Upload error: $e');
+      _isUploading = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  // Upload profile picture from File (for mobile)
+  Future<String?> uploadProfilePictureFile(File imageFile) async {
+    _isUploading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final imageUrl = await repository.uploadProfilePictureFile(imageFile);
       _isUploading = false;
       notifyListeners();
       return imageUrl;

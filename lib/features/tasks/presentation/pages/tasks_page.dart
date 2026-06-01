@@ -319,8 +319,6 @@ class _TasksPageState extends State<TasksPage> {
       ],
     );
   }
-
-  // Show edit task dialog (only for manager)
 // Show edit task dialog
 Future<void> _showEditTaskDialog(TaskModel task) async {
   final titleController = TextEditingController(text: task.title);
@@ -404,8 +402,7 @@ Future<void> _showEditTaskDialog(TaskModel task) async {
                     },
                   ),
                   const SizedBox(height: 16),
-
-                  // Description Field
+                   // Description Field
                   TextField(
                     controller: descriptionController,
                     decoration: InputDecoration(

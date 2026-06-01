@@ -4,7 +4,7 @@ class ProfileModel {
   final String email;
   final String role;
   final bool isActive;
-  final String? profilePicture; // New field for profile picture URL
+  final String? profilePicture;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -45,7 +45,6 @@ class ProfileModel {
     };
   }
 
-  // For update request (PATCH)
   Map<String, dynamic> toUpdateJson({
     String? name,
     String? email,
